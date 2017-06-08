@@ -1,4 +1,5 @@
 #include "Bricks.h"
+#include "OffscreenSetup.h"
 #include "Volume.h"
 #include "programs.h"
 
@@ -348,9 +349,13 @@ int main(int argc, char* argv[])
 
     osgViewer::Viewer viewer;
     viewer.setSceneData(bricks.node());
-    viewer.run();
+    viewer.realize();
 
-    
+    osgViewer::Viewer::Cameras cameras;
+    viewer.getCameras(cameras);
+    OffscreenSetup indirect(cameras[0]);
+
+    viewer.run();
 
     //osg::ref_ptr<osg::Node> topBottom = createTopBottomLayers(volume);
     //osg::ref_ptr<osg::Node> lines = createLines(volume);

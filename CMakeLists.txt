@@ -18,6 +18,3 @@ common_find_package(Boost SYSTEM REQUIRED COMPONENTS filesystem system
 common_find_package_post()
 
 add_subdirectory(layers)
-
-
-
