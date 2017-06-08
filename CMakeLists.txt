@@ -13,9 +13,11 @@ set(LAYERS_MAINTAINER "Blue Brain Project <bbp-open-source@googlegroups.com>")
 set(COMMON_PROJECT_DOMAIN ch.epfl.bluebrain)
 include(Common)
 common_find_package(OpenSceneGraph SYSTEM REQUIRED COMPONENTS osg osgViewer)
+common_find_package(Boost SYSTEM REQUIRED COMPONENTS filesystem system
+  program_options)
 common_find_package_post()
 
-add_subdirectory(lib)
-add_subdirectory(apps)
+add_subdirectory(layers)
+
 
 
