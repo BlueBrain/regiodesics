@@ -4,6 +4,7 @@
 #include "programs.h"
 
 #include <osgViewer/Viewer>
+#include <osgGA/GUIEventAdapter>
 
 #include <cmath>
 
@@ -290,6 +291,63 @@ osg::Node* createLayer(const Volume<char>& volume, float a, float b)
     return geode;
 }
 
+class Painter : public osgGA::GUIEventHandler
+{
+public:
+    Painter(Volume<char>& volume, Bricks& bricks)
+        : _volume(volume)
+        , _bricks(bricks)
+        , _state(State::off)
+    {
+    }
+
+    /** Handle events, return true if handled, false otherwise. */
+    virtual bool handle(const osgGA::GUIEventAdapter& ea,
+                        osgGA::GUIActionAdapter& aa,
+                        osg::Object*, osg::NodeVisitor*)
+    {
+        switch (ea.getEventType())
+        {
+        case osgGA::GUIEventAdapter::PUSH:
+            if (ea.getButton() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON)
+            {
+                auto modifier = ea.getModKeyMask();
+                if (modifier & osgGA::GUIEventAdapter::MODKEY_SHIFT)
+                    _state = State::paintingTop;
+                else if (modifier & osgGA::GUIEventAdapter::MODKEY_CTRL)
+                    _state = State::paintingBottom;
+            }
+            break;
+        case osgGA::GUIEventAdapter::RELEASE:
+            if (ea.getButton() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON)
+                _state = State::off;
+            break;
+        case osgGA::GUIEventAdapter::DRAG:
+            if (_state != State::off)
+            {
+                _paintVoxels(aa, ea.getX(), ea.getY());
+                return true;
+            }
+            break;
+        default:
+            ;
+        }
+        return false;
+    }
+
+private:
+    void _paintVoxels(osgGA::GUIActionAdapter&, float x, float y)
+    {
+        std::cout << x << " " << y << " " << (int)_state << std::endl;
+    }
+
+    enum class State { paintingTop, paintingBottom, off};
+
+    Volume<char>& _volume;
+    Bricks& _bricks;
+    State _state;
+};
+
 int main(int argc, char* argv[])
 {
     namespace po = boost::program_options;
@@ -347,9 +405,13 @@ int main(int argc, char* argv[])
 
     Bricks bricks(inOut, Shell);
 
+    osg::ref_ptr<Painter> painter = new Painter(volume, bricks);
+
     osgViewer::Viewer viewer;
     viewer.setSceneData(bricks.node());
-    viewer.realize();
+    //viewer.realize();
+    viewer.setUpViewInWindow(50, 50, 1500, 1000);
+    viewer.addEventHandler(painter);
 
     osgViewer::Viewer::Cameras cameras;
     viewer.getCameras(cameras);
