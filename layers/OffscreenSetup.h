@@ -26,25 +26,18 @@ public:
                                             osg::Vec3(2, 0, 0),
                                             osg::Vec3(0, 2, 0), 0, 0, 1, 1));
 
-        // Creating the depth and color textures were the original camera
-        // will render into.
         _textures[0] = new osg::Texture2D;
         _textures[0]->setTextureSize(_width, _height);
-        _textures[0]->setInternalFormat(GL_DEPTH_COMPONENT24);
-        _textures[0]->setSourceFormat(GL_DEPTH_COMPONENT);
-        _textures[0]->setSourceType(GL_FLOAT);
-        _textures[0]->setFilter(osg::Texture2D::MIN_FILTER,
-                                osg::Texture2D::LINEAR);
-        _textures[0]->setFilter(osg::Texture2D::MAG_FILTER,
-                                osg::Texture2D::LINEAR);
+        _textures[0]->setInternalFormat(GL_RGBA);
 
         _textures[1] = new osg::Texture2D;
         _textures[1]->setTextureSize(_width, _height);
-        _textures[1]->setInternalFormat(GL_RGBA);
+        _textures[1]->setInternalFormat(GL_RGB32F);
+        _textures[1]->setSourceFormat(GL_RGB);
 
         // Creating the screen quad for the final render pass.
         osg::StateSet* stateset = _screenQuad->getOrCreateStateSet();
-        stateset->setTextureAttribute(0, _textures[1]);
+        stateset->setTextureAttribute(0, _textures[0]);
         stateset->addUniform(new osg::Uniform("color", 0));
 
         osg::Program* program =new osg::Program();
@@ -74,13 +67,13 @@ public:
         _orthoCamera->addChild(_screenQuad);
 
         // Setting up the camera original camera to do render to texture
-        _camera->attach(osg::Camera::DEPTH_BUFFER, _textures[0].get());
-        _camera->attach(osg::Camera::COLOR_BUFFER, _textures[1].get());
+        _camera->attach(osg::Camera::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
+        _camera->attach(osg::Camera::COLOR_BUFFER0, _textures[0].get());
+        _camera->attach(osg::Camera::COLOR_BUFFER1, _textures[1].get());
         _camera->setClearMask(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
         _camera->setRenderTargetImplementation(
             osg::Camera::FRAME_BUFFER_OBJECT);
         _camera->setRenderOrder(osg::Camera::PRE_RENDER);
-
         _camera->addChild(_orthoCamera.get());
     }
 
@@ -91,7 +84,7 @@ private:
     osg::ref_ptr<osg::Geode> _screenQuad;
     osg::ref_ptr<osg::Camera> _orthoCamera;
     osg::ref_ptr<osg::Camera> _camera;
-    osg::ref_ptr<osg::Texture2D> _textures[3];
+    osg::ref_ptr<osg::Texture2D> _textures[2];
 };
 
 #endif

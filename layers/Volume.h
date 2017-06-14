@@ -44,9 +44,11 @@ public:
     {
         size_t headerSize = 0;
         std::map<std::string, std::string> dataInfo;
-        headerSize = ::NRRD::parseHeader(filename, dataInfo);
+        headerSize = NRRD::parseHeader(filename, dataInfo);
         if (headerSize == 0)
             throw(std::runtime_error("NRRD file's header is empty"));
+
+        _checkType(dataInfo["type"]);
 
         std::string dataFile = filename;
         if (dataInfo.count("datafile") > 0)
@@ -57,38 +59,32 @@ public:
             dataFile = dataFilePath.string();
         }
 
-        if (dataInfo["type"] != "unsigned short")
-            throw(std::runtime_error(
-                "Only unsigned short volumes are supported"));
-
         if (dataInfo["endian"] != "little")
             throw(std::runtime_error(
                 "Big endian volumes are not supported"));
 
         std::stringstream dims(dataInfo["sizes"]);
         dims >> _width >> _height >> _depth;
+        const size_t size = _width * _height * _depth;
         if (dims.fail())
             throw(std::runtime_error(
                 "Error parsing volume size"));
 
-        const size_t size = _width * _height * _depth;
-        std::unique_ptr<uint16_t[]> buffer(new uint16_t[size]);
-
-        std::fstream binaryIo;
-        binaryIo.open(filename, std::ios::in | std::ios::binary);
-        binaryIo.seekg(headerSize);
-        binaryIo.read((char*)buffer.get(), sizeof(uint16_t) * size);
-
-        _data.reset(new char[size]);
-        for (size_t i = 0; i != size; ++i)
-        {
-            _data[i] = buffer[i] != 0;
-        }
+        std::fstream inFile;
+        inFile.open(filename, std::ios::in | std::ios::binary);
+        inFile.seekg(headerSize);
+        _data.reset(new T[size]);
+        inFile.read((char*)_data.get(), sizeof(T) * size);
     }
-
 
     Volume(const Volume&) = delete;
     Volume& operator=(const Volume&) = delete;
+
+    void save(const std::string& filename) const
+    {
+        int dims[] = {int(_width), int(_height), int(_depth)};
+        NRRD::save<T>(filename, _data.get(), 3, dims);
+    }
 
     std::tuple<unsigned int, unsigned int, unsigned> dimensions() const
     {
@@ -181,6 +177,23 @@ private:
     unsigned int _width;
     unsigned int _height;
     unsigned int _depth;
+
+    void _checkType(const std::string& type);
 };
+
+
+template<>
+inline void Volume<char>::_checkType(const std::string& type)
+{
+    if (type != "char")
+        throw(std::runtime_error("Unexpected volume type: " + type));
+}
+
+template<>
+inline void Volume<unsigned short>::_checkType(const std::string& type)
+{
+    if (type != "unsigned short")
+        throw(std::runtime_error("Unexpected volume type: " + type));
+}
 
 #endif

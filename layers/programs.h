@@ -122,8 +122,6 @@ inline osg::Program* createLitLinesProgram()
 
     void main()
     {
-        if (t < 0.4 || t > 0.55)
-             discard;
         vec3 norm_eye = normalize(eye);
         float lambert = normalize(normal).z * 0.8;
         vec4 color = gl_Color * lambert + vec4(0.05, 0.05, 0.05, 0.0);

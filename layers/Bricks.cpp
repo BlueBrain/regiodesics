@@ -32,7 +32,7 @@ inline osg::Program* createBrickShadingProgram()
     #extension GL_EXT_geometry_shader4 : enable
     #extension GL_EXT_gpu_shader4 : enable
 
-    flat varying in vec3 coordsIn[];
+    varying in vec3 coordsIn[];
 
     varying out vec3 normal;
     varying out vec3 eye;
@@ -40,9 +40,9 @@ inline osg::Program* createBrickShadingProgram()
 
     void main()
     {
-        vec4 x = vec4(gl_NormalMatrix * vec3(0.999, 0, 0), 0);
-        vec4 y = vec4(gl_NormalMatrix * vec3(0, 0.999, 0), 0);
-        vec4 z = vec4(gl_NormalMatrix * vec3(0, 0, 0.999), 0);
+        vec4 x = vec4(gl_NormalMatrix * vec3(1, 0, 0), 0);
+        vec4 y = vec4(gl_NormalMatrix * vec3(0, 1, 0), 0);
+        vec4 z = vec4(gl_NormalMatrix * vec3(0, 0, 1), 0);
         vec4 p = gl_PositionIn[0];
 
         vec4 px = gl_ProjectionMatrix * x;
@@ -137,7 +137,10 @@ inline osg::Program* createBrickShadingProgram()
         color.rgb += vec3(0.05, 0.05, 0.05) *
                      pow(max(dot(r, norm_eye) , 0.0), 16.0);
 
-        gl_FragColor = color;
+        gl_FragData[0] = color;
+        // All coordinates are increased by 1 so 0, 0, 0 can be used for empty
+        // pixels.
+        gl_FragData[1].xyz = coords + vec3(1, 1, 1);
     })";
 
     osg::Program* program = new osg::Program();
@@ -151,7 +154,8 @@ inline osg::Program* createBrickShadingProgram()
     return program;
 }
 
-Bricks::Bricks(const Volume<char>& volume, const char value)
+Bricks::Bricks(const Volume<char>& volume, const std::vector<char>& values,
+               const ColorMap& colors)
 {
     std::tie(_width, _height, _depth) = volume.dimensions();
 
@@ -166,18 +170,31 @@ Bricks::Bricks(const Volume<char>& volume, const char value)
         for (unsigned int y = 0; y < _height; ++y)
             for (unsigned int z = 0; z < _depth; ++z, ++progress)
             {
-                if (volume(x, y, z) != value)
+                auto i = std::find(values.begin(), values.end(),
+                                   volume(x, y, z));
+                if (i == values.end())
                     continue;
 
                 vertices->push_back(osg::Vec3(x, y, z));
-                const float t = y / float(_height);
-                _colors->push_back(osg::Vec4(x / float(_width), t, 1 - t, 1));
+                _coords.push_back(std::make_tuple(x, y, z));
+
+                auto entry = colors.find(*i);
+                osg::Vec4 color;
+                if (entry != colors.end())
+                    color = entry->second;
+                else
+                {
+                    const float t = y / float(_height);
+                    color =  osg::Vec4(x / float(_width), t, 1 - t, 1);
+                }
+                _colors->push_back(color);
             }
 
     osg::DrawArrays* primitive =
         new osg::DrawArrays(GL_POINTS, 0, vertices->size());
 
     osg::Geometry* geometry = new osg::Geometry();
+    geometry->setUseDisplayList(false);
     geometry->setVertexArray(vertices);
     geometry->setColorArray(_colors);
     geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
@@ -189,5 +206,24 @@ Bricks::Bricks(const Volume<char>& volume, const char value)
     osg::Geode* geode = new osg::Geode();
     geode->addDrawable(geometry);
     _node = geode;
+}
+
+void Bricks::resetBrick(unsigned int x, unsigned int y, unsigned z)
+{
+    const float t = y / float(_height);
+    paintBrick(x, y, z, osg::Vec4(x / float(_width), t, 1 - t, 1));
+}
+
+void Bricks::paintBrick(unsigned int x, unsigned int y, unsigned z,
+                        const osg::Vec4& color)
+{
+    if (x == 0 && y == 0 && z == 0)
+        abort();
+
+    auto i = std::lower_bound(_coords.begin(), _coords.end(),
+                              std::make_tuple(x, y, z));
+    assert(i != _coords.end());
+    (*_colors)[i - _coords.begin()] = color;
+    _colors->dirty();
 }
 
