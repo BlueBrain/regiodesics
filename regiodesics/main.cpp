@@ -189,15 +189,41 @@ private:
     bool _paint;
 };
 
+namespace std
+{
+istream& operator>>(istream& in, std::pair<unsigned int, unsigned int>& pair)
+{
+    string s;
+    in >> s;
+    const auto pos = s.find(':');
+    pair.first = boost::lexical_cast<unsigned int>(s.substr(0, pos));
+    if (pos == string::npos)
+        pair.second = std::numeric_limits<unsigned int>::max();
+    else
+        pair.second = boost::lexical_cast<unsigned int>(s.substr(pos + 1));
+    return in;
+}
+}
+
 int main(int argc, char* argv[])
 {
+    std::pair<unsigned int, unsigned int> cropX{
+        0, std::numeric_limits<unsigned int>::max()};
+
     namespace po = boost::program_options;
     // clang-format off
     po::options_description options("Options");
     options.add_options()
         ("help,h", "Produce help message")
         ("version,v", "Show program name/version banner and exit")
-        ("shell,s", po::value<std::string>(), "Load a saved painted shell");
+        ("shell,s", po::value<std::string>(), "Load a saved painted shell")
+        ("thickness,t", po::value<std::vector<float>>()->multitoken(),
+         "Layer thicknesses (absolute or relative). Must contain at least"
+         " two values")
+        ("crop-x,x", po::value<std::pair<unsigned int, unsigned int>>(&cropX)->
+         value_name("<min>[:<max>]"),
+         "Optional crop range for the input volume. Values outside this "
+         "range will be cleared to 0 in the input volumes.");
 
     po::options_description hidden;
     hidden.add_options()
@@ -217,9 +243,8 @@ int main(int argc, char* argv[])
 
     if (vm.count("help") || vm.count("input") == 0)
     {
-        std::cout
-            << "Usage: " << argv[0] << " input [options]" << std::endl
-            << options << std::endl;
+        std::cout << "Usage: " << argv[0] << " input [options]" << std::endl
+                  << options << std::endl;
         return 0;
     }
     if (vm.count("version"))
@@ -244,10 +269,66 @@ int main(int argc, char* argv[])
     if (vm.count("shell"))
         shellFile = vm["shell"].as<std::string>();
 
+    std::vector<float> splitPoints{0.0792355711331, 0.150750191634,
+                                   0.320282553918, 0.411345964278,
+                                   0.663563684133};
+    if (vm.count("thickness"))
+    {
+        const auto& thicknesses = vm["thickness"].as<std::vector<float>>();
+
+        if (thicknesses.size() < 2)
+        {
+            std::cerr << "The thickness option must include at least two values"
+                      << std::endl;
+            return -1;
+        }
+        splitPoints.clear();
+        std::vector<float> cummulative({0.f});
+        for (auto x : thicknesses)
+            cummulative.push_back(cummulative.back() + x);
+        const float total = cummulative.back();
+        // The last (=total) and first (=0) values are ignored
+        for (auto i = ++cummulative.begin(); i != --cummulative.end(); ++i)
+        {
+            std::cout << *i / total << std::endl;
+            splitPoints.push_back(*i / total);
+        }
+    }
+
     Volume<unsigned short> inVolume(filename);
+    std::cout << "Input volume dimensions: " << inVolume.width() << " "
+              << inVolume.height() << " " << inVolume.depth() << std::endl;
 
     Volume<char> shell = shellFile.empty() ? annotateBoundaryVoxels(inVolume)
                                            : Volume<char>(shellFile);
+
+    if (inVolume.dimensions() != shell.dimensions())
+    {
+        std::cerr << "Invalid shell volume" << std::endl;
+        return -1;
+    }
+    if (cropX.first > 0 || cropX.second < inVolume.width())
+    {
+        for (size_t i = 0; i < cropX.first; ++i)
+            for (size_t j = 0; j < inVolume.height(); ++j)
+                for (size_t k = 0; k < inVolume.depth(); ++k)
+                {
+                    inVolume(i, j , k) = 0;
+                    shell(i, j , k) = 0;
+                }
+        for (size_t i = std::min(cropX.second, inVolume.width() - 1) + 1;
+             i < inVolume.width(); ++i)
+        {
+            for (size_t j = 0; j < inVolume.height(); ++j)
+            {
+                for (size_t k = 0; k < inVolume.depth(); ++k)
+                {
+                    inVolume(i, j , k) = 0;
+                    shell(i, j , k) = 0;
+                }
+            }
+        }
+    }
 
     Bricks::ColorMap colors;
     colors[Top] = TopColor;
@@ -281,9 +362,9 @@ int main(int argc, char* argv[])
                  });
 
     painter->done.connect(
-        [scene, &shell, &layers, colors]{
+        [scene, &shell, &layers, splitPoints]{
 
-            annotateLayers(shell, {0.05, 0.15, 0.25, 0.43, 0.65}, layers, 1000);
+            annotateLayers(shell, splitPoints, layers, 1000);
             layers.save("layers.nrrd");
 
             scene->removeChild(0, scene->getNumChildren());
