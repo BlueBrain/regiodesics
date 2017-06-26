@@ -349,22 +349,11 @@ int main(int argc, char* argv[])
     osg::ref_ptr<Painter> painter = new Painter(shell, bricks, cameras[0]);
     viewer.addEventHandler(painter);
 
-    Volume<char> layers(shell.width(), shell.height(), shell.depth());
-    layers.set(0);
-    layers.apply([&inVolume](unsigned int x, unsigned int y, unsigned int z,
-                           const char&)
-                 {
-                     if (x < inVolume.width() / 2)
-                         return 0;
-                     if (inVolume(x, y, z) == 0)
-                         return 0;
-                     return 128;
-                 });
-
     painter->done.connect(
-        [scene, &shell, &layers, splitPoints]{
+        [scene, &shell, splitPoints]{
 
-            annotateLayers(shell, splitPoints, layers, 1000);
+            auto distances = computeRelativeDistanceField(shell, 1000);
+            auto layers = annotateLayers(distances, splitPoints);
             layers.save("layers.nrrd");
 
             scene->removeChild(0, scene->getNumChildren());

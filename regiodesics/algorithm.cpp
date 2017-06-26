@@ -67,9 +67,8 @@ Segments findNearestVoxels(const Volume<char>& volume, char from, char to)
     return segments;
 }
 
-void annotateLayers(const Volume<char>& shell,
-                    std::vector<float> separations,
-                    Volume<char>& layers, size_t setSize)
+Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
+                                           const size_t setSize)
 {
     auto segments = findNearestVoxels(shell, Bottom, Top);
     auto segments2 = findNearestVoxels(shell, Top, Bottom);
@@ -85,13 +84,11 @@ void annotateLayers(const Volume<char>& shell,
     SegmentIndex index(segments.begin(), segments.end());
 
     unsigned int width, height, depth;
-    std::tie(width, height, depth) = layers.dimensions();
+    std::tie(width, height, depth) = shell.dimensions();
 
-    (void)separations;
-    (void)setSize;
-
+    Volume<float> field(width, height, depth);
     boost::progress_display progress(width * height);
-    int count = 0;
+
     for (unsigned int x = 0; x < width; ++x)
     {
 #pragma omp parallel for schedule(dynamic)
@@ -99,12 +96,12 @@ void annotateLayers(const Volume<char>& shell,
         {
             for (unsigned int z = 0; z < depth; ++z)
             {
-                auto value = layers(x, y, z);
+                auto value = shell(x, y, z);
                 if (value == 0)
+                {
+                    field(x, y, z) = -1;
                     continue;
-
-                #pragma omp atomic
-                ++count;
+                }
 
                 Segments neighbours;
 
@@ -145,11 +142,43 @@ void annotateLayers(const Volume<char>& shell,
                 const float t8 = std::pow(t, 8);
                 const float pos = relativeToClosest * t8 + average * (1 - t8);
 
+                field(x, y, z) = pos;
+            }
+#pragma omp critical
+            ++progress;
+        }
+    }
+
+    return field;
+}
+
+Volume<char> annotateLayers(const Volume<float>& distanceField,
+                            const std::vector<float>& separations)
+{
+    unsigned int width, height, depth;
+    std::tie(width, height, depth) = distanceField.dimensions();
+    Volume<char> layers(width, height, depth);
+
+    boost::progress_display progress(width * height);
+    for (unsigned int x = 0; x < width; ++x)
+    {
+#pragma omp parallel for schedule(dynamic)
+        for (unsigned int y = 0; y < height; ++y)
+        {
+            for (unsigned int z = 0; z < depth; ++z)
+            {
+                auto value = distanceField(x, y, z);
+                if (value < 0)
+                {
+                    layers(x, y, z) = 0;
+                    continue;
+                }
+
                 // Finding out in which layer this voxel falls
                 char layer = 1;
                 for (auto s : separations)
                 {
-                    if (pos < s)
+                    if (value < s)
                         break;
                     ++layer;
                 }
@@ -159,4 +188,5 @@ void annotateLayers(const Volume<char>& shell,
             ++progress;
         }
     }
+    return layers;
 }

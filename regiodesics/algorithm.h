@@ -22,8 +22,11 @@ Volume<char> annotateBoundaryVoxels(const Volume<unsigned short>& volume);
 
 Segments findNearestVoxels(const Volume<char>& volume, char from, char to);
 
-void annotateLayers(const Volume<char>& shell,
-                    std::vector<float> separations,
-                    Volume<char>& layers, size_t setSize);
+Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
+                                           size_t lineSetSize);
+
+Volume<char> annotateLayers(const Volume<float>& distanceField,
+                            const std::vector<float>& separations);
+
 
 #endif
