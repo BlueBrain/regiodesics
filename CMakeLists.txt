@@ -21,3 +21,4 @@ common_find_package(OpenMP)
 common_find_package_post()
 
 add_subdirectory(regiodesics)
+add_subdirectory(apps)

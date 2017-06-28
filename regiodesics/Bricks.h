@@ -22,18 +22,18 @@ public:
     {
         return _node.get();
     }
-    void paintBrick(unsigned int x, unsigned int y, unsigned z,
+    void paintBrick(size_t x, size_t y, size_t z,
                     const osg::Vec4& color);
 
-    void resetBrick(unsigned int x, unsigned int y, unsigned z);
+    void resetBrick(size_t x, size_t y, size_t z);
 
 private:
-    unsigned int _width;
-    unsigned int _height;
-    unsigned int _depth;
+    size_t _width;
+    size_t _height;
+    size_t _depth;
     osg::ref_ptr<osg::Vec4Array> _colors;
     osg::ref_ptr<osg::Node> _node;
-    std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> _coords;
+    std::vector<std::tuple<size_t, size_t, size_t>> _coords;
 };
 
 #endif

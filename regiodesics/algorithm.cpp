@@ -5,6 +5,7 @@
 
 namespace
 {
+
 float _relativePositionOnSegment(const Segment& segment, Point c)
 {
     using namespace boost::geometry;
@@ -29,7 +30,7 @@ Volume<char> annotateBoundaryVoxels(const Volume<unsigned short>& volume)
 {
     Volume<char> output(volume.width(), volume.height(), volume.depth());
     output.set(0);
-    output.apply([&volume](unsigned int x, unsigned int y, unsigned int z,
+    output.apply([&volume](size_t x, size_t y, size_t z,
                           const char&)
                  {
                      if (volume(x, y, z) == 0)
@@ -54,8 +55,8 @@ Segments findNearestVoxels(const Volume<char>& volume, char from, char to)
 {
     Segments segments;
     auto index = volume.createIndex(to);
-    volume.visit([index, from, &segments](unsigned int x, unsigned int y,
-                                          unsigned int z, const char& v) {
+    volume.visit([index, from, &segments](size_t x, size_t y,
+                                          size_t z, const char& v) {
         if (v != from)
             return;
         Coords origin(x, y, z);
@@ -83,18 +84,18 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
                                       boost::geometry::index::rstar<16>>;
     SegmentIndex index(segments.begin(), segments.end());
 
-    unsigned int width, height, depth;
+    size_t width, height, depth;
     std::tie(width, height, depth) = shell.dimensions();
 
     Volume<float> field(width, height, depth);
     boost::progress_display progress(width * height);
 
-    for (unsigned int x = 0; x < width; ++x)
+    for (size_t x = 0; x < width; ++x)
     {
 #pragma omp parallel for schedule(dynamic)
-        for (unsigned int y = 0; y < height; ++y)
+        for (size_t y = 0; y < height; ++y)
         {
-            for (unsigned int z = 0; z < depth; ++z)
+            for (size_t z = 0; z < depth; ++z)
             {
                 auto value = shell(x, y, z);
                 if (value == 0)
@@ -155,17 +156,17 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
 Volume<char> annotateLayers(const Volume<float>& distanceField,
                             const std::vector<float>& separations)
 {
-    unsigned int width, height, depth;
+    size_t width, height, depth;
     std::tie(width, height, depth) = distanceField.dimensions();
     Volume<char> layers(width, height, depth);
 
     boost::progress_display progress(width * height);
-    for (unsigned int x = 0; x < width; ++x)
+    for (size_t x = 0; x < width; ++x)
     {
 #pragma omp parallel for schedule(dynamic)
-        for (unsigned int y = 0; y < height; ++y)
+        for (size_t y = 0; y < height; ++y)
         {
-            for (unsigned int z = 0; z < depth; ++z)
+            for (size_t z = 0; z < depth; ++z)
             {
                 auto value = distanceField(x, y, z);
                 if (value < 0)

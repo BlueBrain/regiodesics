@@ -3,16 +3,25 @@
 
 #include "algorithm.h"
 
+#include <boost/progress.hpp>
+
+template <typename T, typename U>
+T point3d_cast(const PointT<U>& point)
+{
+    return T(point.template get<0>(), point.template get<1>(),
+             point.template get<2>());
+}
+
 osg::Node* createLines(const Volume<char>& volume)
 {
-    unsigned int width, height, depth;
+    size_t width, height, depth;
     std::tie(width, height, depth) = volume.dimensions();
 
     osg::Vec3Array* vertices = new osg::Vec3Array();
     vertices->reserve((width + 1) * (height + 1) * (depth + 1));
-    for (unsigned int x = 0; x < width; ++x)
-        for (unsigned int y = 0; y < height; ++y)
-            for (unsigned int z = 0; z < depth; ++z)
+    for (size_t x = 0; x < width; ++x)
+        for (size_t y = 0; y < height; ++y)
+            for (size_t z = 0; z < depth; ++z)
                 vertices->push_back(osg::Vec3(x + 0.5, y + 0.5, z + 0.5));
 
     osg::DrawElementsUInt* primitive1 = new osg::DrawElementsUInt(GL_LINES);
@@ -64,9 +73,9 @@ osg::Node* createLines(const Volume<char>& volume)
 Volume<char> createVolume(unsigned int side = 128, char top = Top,
                           char bottom = Bottom, char middle = Interior)
 {
-    unsigned int width = side;
-    unsigned int height = side;
-    unsigned int depth = side;
+    size_t width = side;
+    size_t height = side;
+    size_t depth = side;
 
     Volume<char> volume(width, height, depth);
     volume.set(0);
@@ -75,17 +84,17 @@ Volume<char> createVolume(unsigned int side = 128, char top = Top,
     const float period_x = 100;
     const float period_y = 90;
 
-    for (unsigned int x = 0; x != width; ++x)
+    for (size_t x = 0; x != width; ++x)
     {
-        for (unsigned int z = 0; z != depth; ++z)
+        for (size_t z = 0; z != depth; ++z)
         {
-            unsigned int y =
+            size_t y =
                 std::round(std::sin(x / period_x * 2 * M_PI) *
                            std::sin(z / period_y * 2 * M_PI) * amplitude) +
                 amplitude + 16;
             volume(x, y, z) = top;
 
-            unsigned int y2 =
+            size_t y2 =
                 std::round(std::sin(x / period_x * 2 * M_PI + M_PI/2) *
                            std::sin(z / period_y * 2 * M_PI + M_PI/2) *
                            amplitude) +

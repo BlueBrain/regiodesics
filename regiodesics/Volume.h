@@ -1,5 +1,7 @@
-#ifndef LAYERS_VOLUME_H
-#define LAYERS_VOLUME_H
+#ifndef REGIODESICS_VOLUME_H
+#define REGIODESICS_VOLUME_H
+
+#include "types.h"
 
 #include "nrrd.hxx"
 
@@ -9,21 +11,17 @@
 #include <utility>
 
 #include <boost/geometry/index/rtree.hpp>
-#include <boost/geometry/geometries/point.hpp>
 #include <boost/filesystem/path.hpp>
 
 template <typename T>
 class Volume
 {
 public:
-    using Coords =
-        boost::geometry::model::point<unsigned int, 3,
-                                      boost::geometry::cs::cartesian>;
     using Index =
         boost::geometry::index::rtree<Coords,
                                       boost::geometry::index::linear<5>>;
 
-    Volume(unsigned int width, unsigned int height, unsigned int depth)
+    Volume(size_t width, size_t height, size_t depth)
         // The storage is in colume-major order
         : _data(new T[width * height * depth]),
           _width(width),
@@ -86,17 +84,17 @@ public:
         NRRD::save<T>(filename, _data.get(), 3, dims);
     }
 
-    std::tuple<unsigned int, unsigned int, unsigned> dimensions() const
+    std::tuple<size_t, size_t, size_t> dimensions() const
     {
         return std::make_tuple(_width, _height, _depth);
     }
 
-    unsigned int width() const { return _width; }
-    unsigned int height() const { return _height; }
-    unsigned int depth() const { return _depth; }
+    size_t width() const { return _width; }
+    size_t height() const { return _height; }
+    size_t depth() const { return _depth; }
     void set(const T& value)
     {
-        apply([value](unsigned int, unsigned int, unsigned int, const T&) {
+        apply([value](size_t, size_t, size_t, const T&) {
             return value;
         });
     }
@@ -104,11 +102,11 @@ public:
     template <typename Functor>
     void visit(const Functor& functor) const
     {
-        for (unsigned int z = 0; z != _depth; ++z)
+        for (size_t z = 0; z != _depth; ++z)
         {
-            for (unsigned int y = 0; y != _height; ++y)
+            for (size_t y = 0; y != _height; ++y)
             {
-                for (unsigned int x = 0; x != _width; ++x)
+                for (size_t x = 0; x != _width; ++x)
                 {
                     functor(x, y, z, operator()(x, y, z));
                 }
@@ -119,11 +117,11 @@ public:
     template <typename Functor>
     void apply(const Functor& functor)
     {
-        for (unsigned int z = 0; z != _depth; ++z)
+        for (size_t z = 0; z != _depth; ++z)
         {
-            for (unsigned int y = 0; y != _height; ++y)
+            for (size_t y = 0; y != _height; ++y)
             {
-                for (unsigned int x = 0; x != _width; ++x)
+                for (size_t x = 0; x != _width; ++x)
                 {
                     T& v = operator()(x, y, z);
                     v = functor(x, y, z, v);
@@ -136,8 +134,7 @@ public:
     {
         Index idx;
 
-        visit([&idx, value](
-                  unsigned int x, unsigned int y, unsigned int z, const T& v)
+        visit([&idx, value](size_t x, size_t y, size_t z, const T& v)
               {
                   if (v != value)
                       return;
@@ -156,15 +153,45 @@ public:
         return operator()(coords.get<0>(), coords.get<1>(), coords.get<2>());
     }
 
-    T& operator()(unsigned int x, unsigned int y, unsigned int z)
+    template <typename U>
+    T operator()(const PointT<U>& point) const
     {
-            assert(x < _width);
-            assert(y < _height);
-            assert(z < _depth);
-            return _data[z * _width * _height + y * _width + x];
+        return operator()(point.template get<0>(), point.template get<1>(),
+                          point.template get<2>());
     }
 
-    const T& operator()(unsigned int x, unsigned int y, unsigned int z) const
+    template <typename U>
+    T operator()(const U x, const U y, const U z) const
+    {
+        static_assert(!std::is_integral<T>::value,
+                      "Interpolation of integer volumes is not valid");
+
+        size_t i = x;
+        size_t j = y;
+        size_t k = z;
+
+        U a = x - i;
+        U b = y - j;
+        U c = z - k;
+
+        T p[] = {(*this)(i + 1, j, k) * a + (*this)(i, j, k) * (1 - a),
+                 (*this)(i + 1, j + 1, k) * a + (*this)(i, j + 1, k) * (1 - a),
+                 (*this)(i + 1, j, k + 1) * a + (*this)(i, j, k + 1) * (1 - a),
+                 (*this)(i + 1, j + 1, k + 1) * a +
+                     (*this)(i, j + 1, k + 1) * (1 - a)};
+        T q[] = {p[1] * b + p[0] * (1 - b), p[3] * b + p[2] * (1 - b)};
+        return q[1] * c + q[0] * (1 - c);
+    }
+
+    T & operator()(size_t x, size_t y, size_t z)
+    {
+        assert(x < _width);
+        assert(y < _height);
+        assert(z < _depth);
+        return _data[z * _width * _height + y * _width + x];
+    }
+
+    const T& operator()(size_t x, size_t y, size_t z) const
     {
             assert(x < _width);
             assert(y < _height);
@@ -174,9 +201,9 @@ public:
 
 private:
     std::unique_ptr<T[]> _data;
-    unsigned int _width;
-    unsigned int _height;
-    unsigned int _depth;
+    size_t _width;
+    size_t _height;
+    size_t _depth;
 
     void _checkType(const std::string& type);
 };
@@ -193,6 +220,13 @@ template<>
 inline void Volume<unsigned short>::_checkType(const std::string& type)
 {
     if (type != "unsigned short")
+        throw(std::runtime_error("Unexpected volume type: " + type));
+}
+
+template<>
+inline void Volume<float>::_checkType(const std::string& type)
+{
+    if (type != "float")
         throw(std::runtime_error("Unexpected volume type: " + type));
 }
 

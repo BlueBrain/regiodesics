@@ -7,7 +7,6 @@
 #include <osgViewer/Viewer>
 #include <osgViewer/Renderer>
 #include <osgGA/GUIEventAdapter>
-#include <osgManipulator/RotateSphereDragger>
 
 #include <cmath>
 
@@ -75,9 +74,9 @@ public:
                     if (coords[0] < 1)
                         continue;
 
-                    unsigned int x = coords[0] - 1;
-                    unsigned int y = coords[1] - 1;
-                    unsigned int z = coords[2] - 1;
+                    size_t x = coords[0] - 1;
+                    size_t y = coords[1] - 1;
+                    size_t z = coords[2] - 1;
                     switch(_painter->_state)
                     {
                     case State::paintTop:
@@ -316,7 +315,8 @@ int main(int argc, char* argv[])
                     inVolume(i, j , k) = 0;
                     shell(i, j , k) = 0;
                 }
-        for (size_t i = std::min(cropX.second, inVolume.width() - 1) + 1;
+        for (size_t i =
+                 std::min(size_t(cropX.second), inVolume.width() - 1) + 1;
              i < inVolume.width(); ++i)
         {
             for (size_t j = 0; j < inVolume.height(); ++j)
@@ -352,16 +352,12 @@ int main(int argc, char* argv[])
     painter->done.connect(
         [scene, &shell, splitPoints]{
 
-            auto distances = computeRelativeDistanceField(shell, 1000);
-            auto layers = annotateLayers(distances, splitPoints);
-            layers.save("layers.nrrd");
-
             scene->removeChild(0, scene->getNumChildren());
 
-            //bricks = Bricks(shell, {Top, Bottom}, colors);
-            //scene->addChild(bricks.node());
-            //osg::ref_ptr<osg::Node> lines = createLines(inOut);
-            //scene->addChild(lines);
+            auto distances = computeRelativeDistanceField(shell, 1000);
+            distances.save("distanceMap.nrrd");
+            auto layers = annotateLayers(distances, splitPoints);
+            layers.save("layers.nrrd");
 
             Bricks::ColorMap layerColors;
             layerColors[1] = osg::Vec4(1.0, 0, 0, 1);

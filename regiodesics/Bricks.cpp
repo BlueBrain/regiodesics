@@ -166,9 +166,9 @@ Bricks::Bricks(const Volume<char>& volume, const std::vector<char>& values,
     _colors->reserve(size);
 
     boost::progress_display progress(size);
-    for (unsigned int x = 0; x < _width; ++x)
-        for (unsigned int y = 0; y < _height; ++y)
-            for (unsigned int z = 0; z < _depth; ++z, ++progress)
+    for (size_t x = 0; x < _width; ++x)
+        for (size_t y = 0; y < _height; ++y)
+            for (size_t z = 0; z < _depth; ++z, ++progress)
             {
                 auto i = std::find(values.begin(), values.end(),
                                    volume(x, y, z));
@@ -208,14 +208,13 @@ Bricks::Bricks(const Volume<char>& volume, const std::vector<char>& values,
     _node = geode;
 }
 
-void Bricks::resetBrick(unsigned int x, unsigned int y, unsigned z)
+void Bricks::resetBrick(size_t x, size_t y, size_t z)
 {
     const float t = y / float(_height);
     paintBrick(x, y, z, osg::Vec4(x / float(_width), t, 1 - t, 1));
 }
 
-void Bricks::paintBrick(unsigned int x, unsigned int y, unsigned z,
-                        const osg::Vec4& color)
+void Bricks::paintBrick(size_t x, size_t y, size_t z, const osg::Vec4& color)
 {
     if (x == 0 && y == 0 && z == 0)
         abort();
