@@ -46,7 +46,7 @@ public:
         if (headerSize == 0)
             throw(std::runtime_error("NRRD file's header is empty"));
 
-        _checkType(dataInfo["type"]);
+        _checkMetadata(dataInfo);
 
         std::string dataFile = filename;
         if (dataInfo.count("datafile") > 0)
@@ -205,29 +205,51 @@ private:
     size_t _height;
     size_t _depth;
 
-    void _checkType(const std::string& type);
+    void _checkMetadata(const std::map<std::string, std::string>& metadata);
 };
 
-
-template<>
-inline void Volume<char>::_checkType(const std::string& type)
+template <>
+inline void Volume<char>::_checkMetadata(
+    const std::map<std::string, std::string>& metadata)
 {
+    const auto& type = metadata.find("type")->second;
     if (type != "char")
         throw(std::runtime_error("Unexpected volume type: " + type));
 }
 
-template<>
-inline void Volume<unsigned short>::_checkType(const std::string& type)
+template <>
+inline void Volume<unsigned short>::_checkMetadata(
+    const std::map<std::string, std::string>& metadata)
 {
+    const auto& type = metadata.find("type")->second;
     if (type != "unsigned short")
         throw(std::runtime_error("Unexpected volume type: " + type));
 }
 
-template<>
-inline void Volume<float>::_checkType(const std::string& type)
+template <>
+inline void Volume<float>::_checkMetadata(
+    const std::map<std::string, std::string>& metadata)
 {
+    const auto& type = metadata.find("type")->second;
     if (type != "float")
         throw(std::runtime_error("Unexpected volume type: " + type));
 }
+
+template <>
+inline void Volume<Point>::save(const std::string& filename) const
+{
+    int dims[] = {int(_width), int(_height), int(_depth), 3};
+    assert(sizeof(Point) == sizeof(float) * 3);
+    NRRD::save<float>(filename, (float*)_data.get(), 4, dims);
+}
+
+template <>
+inline void Volume<Point4>::save(const std::string& filename) const
+{
+    int dims[] = {4, int(_width), int(_height), int(_depth)};
+    assert(sizeof(Point4) == sizeof(float) * 4);
+    NRRD::save<float>(filename, (float*)_data.get(), 4, dims);
+}
+
 
 #endif

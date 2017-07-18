@@ -22,6 +22,9 @@ using PointT = boost::geometry::model::point<
     T, 3, boost::geometry::cs::cartesian>;
 using Point = PointT<float>;
 
+using Point4 =
+    boost::geometry::model::point<float, 4, boost::geometry::cs::cartesian>;
+
 using Segment = boost::geometry::model::segment<Coords>;
 using SegmentF = boost::geometry::model::segment<Point>;
 using Segments = std::vector<Segment>;
