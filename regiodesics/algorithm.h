@@ -16,4 +16,8 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
 Volume<char> annotateLayers(const Volume<float>& distanceField,
                             const std::vector<float>& separations);
 
+template <typename T>
+void clearXRange(Volume<T>& volume, const std::pair<size_t, size_t>& range,
+                 const T&& value);
+
 #endif

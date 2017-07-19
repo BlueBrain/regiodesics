@@ -30,24 +30,21 @@ Volume<char> annotateBoundaryVoxels(const Volume<unsigned short>& volume)
 {
     Volume<char> output(volume.width(), volume.height(), volume.depth());
     output.set(0);
-    output.apply([&volume](size_t x, size_t y, size_t z,
-                          const char&)
-                 {
-                     if (volume(x, y, z) == 0)
-                         return Void;
+    output.apply([&volume](size_t x, size_t y, size_t z, const char&) {
+        if (volume(x, y, z) == 0)
+            return Void;
 
-                     // Border voxels are always boundary
-                     if (x == 0 || y == 0 || z == 0 ||
-                         x == volume.width() - 1 || y == volume.height() - 1 ||
-                         z == volume.depth() - 1)
-                         return Shell;
+        // Border voxels are always boundary
+        if (x == 0 || y == 0 || z == 0 || x == volume.width() - 1 ||
+            y == volume.height() - 1 || z == volume.depth() - 1)
+            return Shell;
 
-                     if (volume(x - 1, y, z) == 0 || volume(x + 1, y, z) == 0 ||
-                         volume(x, y - 1, z) == 0 || volume(x, y + 1, z) == 0 ||
-                         volume(x, y, z - 1) == 0 || volume(x, y, z + 1) == 0)
-                         return Shell;
-                     return Interior;
-                 });
+        if (volume(x - 1, y, z) == 0 || volume(x + 1, y, z) == 0 ||
+            volume(x, y - 1, z) == 0 || volume(x, y + 1, z) == 0 ||
+            volume(x, y, z - 1) == 0 || volume(x, y, z + 1) == 0)
+            return Shell;
+        return Interior;
+    });
     return output;
 }
 
@@ -55,16 +52,16 @@ Segments findNearestVoxels(const Volume<char>& volume, char from, char to)
 {
     Segments segments;
     auto index = volume.createIndex(to);
-    volume.visit([index, from, &segments](size_t x, size_t y,
-                                          size_t z, const char& v) {
-        if (v != from)
-            return;
-        Coords origin(x, y, z);
-        std::vector<Coords> nearest;
-        index.query(boost::geometry::index::nearest(origin, 1),
-                    std::back_inserter(nearest));
-        segments.push_back(Segment(origin, nearest[0]));
-    });
+    volume.visit(
+        [index, from, &segments](size_t x, size_t y, size_t z, const char& v) {
+            if (v != from)
+                return;
+            Coords origin(x, y, z);
+            std::vector<Coords> nearest;
+            index.query(boost::geometry::index::nearest(origin, 1),
+                        std::back_inserter(nearest));
+            segments.push_back(Segment(origin, nearest[0]));
+        });
     return segments;
 }
 
@@ -191,3 +188,32 @@ Volume<char> annotateLayers(const Volume<float>& distanceField,
     }
     return layers;
 }
+
+template <typename T>
+void clearXRange(Volume<T>& volume, const std::pair<size_t, size_t>& range,
+                 const T&& value)
+{
+    if (range.first == 0 && range.second >= volume.width())
+        return;
+
+    for (size_t i = 0; i < range.first; ++i)
+        for (size_t j = 0; j < volume.height(); ++j)
+            for (size_t k = 0; k < volume.depth(); ++k)
+                volume(i, j, k) = value;
+    for (size_t i = std::min(size_t(range.second), volume.width() - 1) + 1;
+         i < volume.width(); ++i)
+        for (size_t j = 0; j < volume.height(); ++j)
+            for (size_t k = 0; k < volume.depth(); ++k)
+                volume(i, j, k) = 0;
+}
+
+template void clearXRange<unsigned short>(Volume<unsigned short>&,
+                                          const std::pair<size_t, size_t>&,
+                                          const unsigned short&&);
+
+template void clearXRange<char>(Volume<char>&, const std::pair<size_t, size_t>&,
+                                const char&&);
+
+template void clearXRange<float>(Volume<float>&,
+                                 const std::pair<size_t, size_t>&,
+                                 const float&&);

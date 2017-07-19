@@ -1,19 +1,19 @@
-#include "Bricks.h"
-#include "OffscreenSetup.h"
-#include "algorithm.h"
-#include "programs.h"
-#include "util.h"
+#include "regiodesics/Bricks.h"
+#include "regiodesics/OffscreenSetup.h"
+#include "regiodesics/algorithm.h"
+#include "regiodesics/programs.h"
+#include "regiodesics/util.h"
+#include "regiodesics/version.h"
 
-#include <osgViewer/Viewer>
-#include <osgViewer/Renderer>
 #include <osgGA/GUIEventAdapter>
+#include <osgViewer/Renderer>
+#include <osgViewer/Viewer>
 
 #include <cmath>
 
 #include <boost/program_options.hpp>
 #include <boost/progress.hpp>
 #include <boost/signals2/signal.hpp>
-
 
 osg::Vec4 TopColor(1, 1, 0, 1);
 osg::Vec4 BottomColor(1, 0, 0, 1);
@@ -77,7 +77,7 @@ public:
                     size_t x = coords[0] - 1;
                     size_t y = coords[1] - 1;
                     size_t z = coords[2] - 1;
-                    switch(_painter->_state)
+                    switch (_painter->_state)
                     {
                     case State::paintTop:
                         bricks.paintBrick(x, y, z, TopColor);
@@ -113,8 +113,8 @@ public:
 
     /** Handle events, return true if handled, false otherwise. */
     virtual bool handle(const osgGA::GUIEventAdapter& ea,
-                        osgGA::GUIActionAdapter& aa,
-                        osg::Object*, osg::NodeVisitor*)
+                        osgGA::GUIActionAdapter& aa, osg::Object*,
+                        osg::NodeVisitor*)
     {
         if (_state == State::done)
             return false;
@@ -163,8 +163,7 @@ public:
                 return true;
             }
             break;
-        default:
-            ;
+        default:;
         }
         return false;
     }
@@ -178,7 +177,14 @@ private:
         aa.requestRedraw();
     }
 
-    enum class State {off, erase, paintTop, paintBottom, done};
+    enum class State
+    {
+        off,
+        erase,
+        paintTop,
+        paintBottom,
+        done
+    };
 
     Volume<char>& _volume;
     Bricks& _bricks;
@@ -206,8 +212,7 @@ istream& operator>>(istream& in, std::pair<unsigned int, unsigned int>& pair)
 
 int main(int argc, char* argv[])
 {
-    std::pair<unsigned int, unsigned int> cropX{
-        0, std::numeric_limits<unsigned int>::max()};
+    std::pair<size_t, size_t> cropX{0, std::numeric_limits<size_t>::max()};
 
     namespace po = boost::program_options;
     // clang-format off
@@ -219,8 +224,8 @@ int main(int argc, char* argv[])
         ("thickness,t", po::value<std::vector<float>>()->multitoken(),
          "Layer thicknesses (absolute or relative). Must contain at least"
          " two values")
-        ("crop-x,x", po::value<std::pair<unsigned int, unsigned int>>(&cropX)->
-         value_name("<min>[:<max>]"),
+        ("crop-x,x", po::value<std::pair<size_t, size_t>>(&cropX)->
+                         value_name("<min>[:<max>]"),
          "Optional crop range for the input volume. Values outside this "
          "range will be cleared to 0 in the input volumes.");
 
@@ -240,15 +245,16 @@ int main(int argc, char* argv[])
     auto parser = po::command_line_parser(argc, argv);
     po::store(parser.options(allOptions).positional(positional).run(), vm);
 
+    if (vm.count("version"))
+    {
+        std::cout << "Layer segmenter " << regiodesics::Version::getString()
+                  << std::endl;
+        return 0;
+    }
     if (vm.count("help") || vm.count("input") == 0)
     {
         std::cout << "Usage: " << argv[0] << " input [options]" << std::endl
                   << options << std::endl;
-        return 0;
-    }
-    if (vm.count("version"))
-    {
-        std::cout << "Layer labelling 0.0.0" << std::endl;
         return 0;
     }
 
@@ -306,29 +312,8 @@ int main(int argc, char* argv[])
         std::cerr << "Invalid shell volume" << std::endl;
         return -1;
     }
-    if (cropX.first > 0 || cropX.second < inVolume.width())
-    {
-        for (size_t i = 0; i < cropX.first; ++i)
-            for (size_t j = 0; j < inVolume.height(); ++j)
-                for (size_t k = 0; k < inVolume.depth(); ++k)
-                {
-                    inVolume(i, j , k) = 0;
-                    shell(i, j , k) = 0;
-                }
-        for (size_t i =
-                 std::min(size_t(cropX.second), inVolume.width() - 1) + 1;
-             i < inVolume.width(); ++i)
-        {
-            for (size_t j = 0; j < inVolume.height(); ++j)
-            {
-                for (size_t k = 0; k < inVolume.depth(); ++k)
-                {
-                    inVolume(i, j , k) = 0;
-                    shell(i, j , k) = 0;
-                }
-            }
-        }
-    }
+    clearXRange<unsigned short>(inVolume, cropX, 0);
+    clearXRange(shell, cropX, '\0');
 
     Bricks::ColorMap colors;
     colors[Top] = TopColor;
@@ -349,26 +334,27 @@ int main(int argc, char* argv[])
     osg::ref_ptr<Painter> painter = new Painter(shell, bricks, cameras[0]);
     viewer.addEventHandler(painter);
 
-    painter->done.connect(
-        [scene, &shell, splitPoints]{
+    painter->done.connect([scene, &shell, &colors, splitPoints] {
 
-            scene->removeChild(0, scene->getNumChildren());
+        shell.save("shell.nrrd");
 
-            auto distances = computeRelativeDistanceField(shell, 1000);
-            distances.save("distanceMap.nrrd");
-            auto layers = annotateLayers(distances, splitPoints);
-            layers.save("layers.nrrd");
+        scene->removeChild(0, scene->getNumChildren());
 
-            Bricks::ColorMap layerColors;
-            layerColors[1] = osg::Vec4(1.0, 0, 0, 1);
-            layerColors[2] = osg::Vec4(1.0, 0.5, 0, 1);
-            layerColors[3] = osg::Vec4(1.0, 1.0, 0, 1);
-            layerColors[4] = osg::Vec4(0.5, 1.0, 0.5, 1);
-            layerColors[5] = osg::Vec4(0, 1.0, 1.0, 1);
-            layerColors[6] = osg::Vec4(0, 0.5, 0.5, 1);
-            Bricks layerBricks(layers, {1, 2, 3, 4, 5, 6}, layerColors);
-            scene->addChild(layerBricks.node());
-        });
+        auto distances = computeRelativeDistanceField(shell, 1000);
+        distances.save("distanceMap.nrrd");
+        auto layers = annotateLayers(distances, splitPoints);
+        layers.save("layers.nrrd");
+
+        Bricks::ColorMap layerColors;
+        layerColors[1] = osg::Vec4(1.0, 0, 0, 1);
+        layerColors[2] = osg::Vec4(1.0, 0.5, 0, 1);
+        layerColors[3] = osg::Vec4(1.0, 1.0, 0, 1);
+        layerColors[4] = osg::Vec4(0.5, 1.0, 0.5, 1);
+        layerColors[5] = osg::Vec4(0, 1.0, 1.0, 1);
+        layerColors[6] = osg::Vec4(0, 0.5, 0.5, 1);
+        Bricks layerBricks(layers, {1, 2, 3, 4, 5, 6}, layerColors);
+        scene->addChild(layerBricks.node());
+    });
 
     viewer.run();
 }
