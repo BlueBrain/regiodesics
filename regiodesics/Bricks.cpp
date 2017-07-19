@@ -17,7 +17,7 @@ inline void addShader(osg::Program* program, osg::Shader::Type type,
 
 inline osg::Program* createBrickShadingProgram()
 {
-    const char *vertexSource = R"(
+    const char* vertexSource = R"(
     #version 120
     varying vec3 coordsIn;
     void main()
@@ -27,7 +27,7 @@ inline osg::Program* createBrickShadingProgram()
         coordsIn = gl_Vertex.xyz;
     })";
 
-    const char *geomSource = R"(
+    const char* geomSource = R"(
     #version 120
     #extension GL_EXT_geometry_shader4 : enable
     #extension GL_EXT_gpu_shader4 : enable
@@ -119,7 +119,7 @@ inline osg::Program* createBrickShadingProgram()
         EndPrimitive();
     })";
 
-    const char *const fragSource = R"(
+    const char* const fragSource = R"(
     #version 120
     #extension GL_EXT_geometry_shader4 : enable
 
@@ -170,8 +170,8 @@ Bricks::Bricks(const Volume<char>& volume, const std::vector<char>& values,
         for (size_t y = 0; y < _height; ++y)
             for (size_t z = 0; z < _depth; ++z, ++progress)
             {
-                auto i = std::find(values.begin(), values.end(),
-                                   volume(x, y, z));
+                auto i =
+                    std::find(values.begin(), values.end(), volume(x, y, z));
                 if (i == values.end())
                     continue;
 
@@ -185,7 +185,7 @@ Bricks::Bricks(const Volume<char>& volume, const std::vector<char>& values,
                 else
                 {
                     const float t = y / float(_height);
-                    color =  osg::Vec4(x / float(_width), t, 1 - t, 1);
+                    color = osg::Vec4(x / float(_width), t, 1 - t, 1);
                 }
                 _colors->push_back(color);
             }
@@ -225,4 +225,3 @@ void Bricks::paintBrick(size_t x, size_t y, size_t z, const osg::Vec4& color)
     (*_colors)[i - _coords.begin()] = color;
     _colors->dirty();
 }
-

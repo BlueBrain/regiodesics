@@ -8,8 +8,6 @@
 
 #include <map>
 
-
-
 class Bricks
 {
 public:
@@ -18,12 +16,8 @@ public:
     Bricks(const Volume<char>& volume, const std::vector<char>& values,
            const ColorMap& colors = ColorMap());
 
-    osg::Node* node()
-    {
-        return _node.get();
-    }
-    void paintBrick(size_t x, size_t y, size_t z,
-                    const osg::Vec4& color);
+    osg::Node* node() { return _node.get(); }
+    void paintBrick(size_t x, size_t y, size_t z, const osg::Vec4& color);
 
     void resetBrick(size_t x, size_t y, size_t z);
 

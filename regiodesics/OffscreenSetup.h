@@ -40,7 +40,7 @@ public:
         stateset->setTextureAttribute(0, _textures[0]);
         stateset->addUniform(new osg::Uniform("color", 0));
 
-        osg::Program* program =new osg::Program();
+        osg::Program* program = new osg::Program();
         program->addShader(new osg::Shader(osg::Shader::VERTEX, R"(
             varying vec2 uv;
             void main()
@@ -70,7 +70,7 @@ public:
         _camera->attach(osg::Camera::DEPTH_BUFFER, GL_DEPTH_COMPONENT24);
         _camera->attach(osg::Camera::COLOR_BUFFER0, _textures[0].get());
         _camera->attach(osg::Camera::COLOR_BUFFER1, _textures[1].get());
-        _camera->setClearMask(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+        _camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         _camera->setRenderTargetImplementation(
             osg::Camera::FRAME_BUFFER_OBJECT);
         _camera->setRenderOrder(osg::Camera::PRE_RENDER);

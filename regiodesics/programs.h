@@ -11,7 +11,7 @@ inline void addShader(osg::Program* program, osg::Shader::Type type,
 
 inline osg::Program* createFlatShadingProgram()
 {
-    const char *vertexSource = R"(
+    const char* vertexSource = R"(
     #version 120
     void main()
     {
@@ -19,7 +19,7 @@ inline osg::Program* createFlatShadingProgram()
         gl_Position = gl_ModelViewMatrix * gl_Vertex;
     })";
 
-    const char *geomSource = R"(
+    const char* geomSource = R"(
     #version 120
     #extension GL_EXT_geometry_shader4 : enable
     #extension GL_EXT_gpu_shader4 : enable
@@ -44,7 +44,7 @@ inline osg::Program* createFlatShadingProgram()
         EndPrimitive();
     })";
 
-    const char *const fragSource = R"(
+    const char* const fragSource = R"(
     #version 120
     #extension GL_EXT_geometry_shader4 : enable
 
@@ -77,7 +77,7 @@ inline osg::Program* createFlatShadingProgram()
 
 inline osg::Program* createLitLinesProgram()
 {
-    const char *vertexSource = R"(
+    const char* vertexSource = R"(
     #version 120
     void main()
     {
@@ -85,7 +85,7 @@ inline osg::Program* createLitLinesProgram()
         gl_Position = gl_ModelViewMatrix * gl_Vertex;
     })";
 
-    const char *geomSource = R"(
+    const char* geomSource = R"(
     #extension GL_EXT_geometry_shader4 : enable
     #extension GL_EXT_gpu_shader4 : enable
 
@@ -112,7 +112,7 @@ inline osg::Program* createLitLinesProgram()
         EndPrimitive();
     })";
 
-    const char *const fragSource = R"(
+    const char* const fragSource = R"(
     #version 120
     #extension GL_EXT_geometry_shader4 : enable
 
