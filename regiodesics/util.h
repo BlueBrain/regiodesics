@@ -3,13 +3,34 @@
 
 #include "algorithm.h"
 
+#include <osg/Geode>
+#include <osg/Geometry>
+#include <osg/Node>
+
 #include <boost/progress.hpp>
+
+#include <iostream>
 
 template <typename T, typename U>
 T point3d_cast(const PointT<U>& point)
 {
     return T(point.template get<0>(), point.template get<1>(),
              point.template get<2>());
+}
+
+namespace std
+{
+istream& operator>>(istream& in, std::pair<size_t, size_t>& pair)
+{
+    string s;
+    in >> s;
+    const auto pos = s.find(':');
+    pair.first = boost::lexical_cast<size_t>(s.substr(0, pos));
+    if (pos == string::npos)
+        pair.second = std::numeric_limits<size_t>::max();
+    else
+        pair.second = boost::lexical_cast<size_t>(s.substr(pos + 1));
+    return in;
 }
 
 osg::Node* createLines(const Volume<char>& volume)
@@ -70,39 +91,39 @@ osg::Node* createLines(const Volume<char>& volume)
     return geode;
 }
 
-Volume<char> createVolume(unsigned int side = 128, char top = Top,
-                          char bottom = Bottom, char middle = Interior)
+Volume<unsigned short> createVolume(unsigned int side = 128,
+                                    unsigned int pad = 8)
 {
     size_t width = side;
     size_t height = side;
     size_t depth = side;
 
-    Volume<char> volume(width, height, depth);
+    Volume<unsigned short> volume(width, height, depth);
     volume.set(0);
 
-    const float amplitude = 10;
+    const float amplitude = side / 10;
     const float period_x = 100;
     const float period_y = 90;
 
-    for (size_t x = 0; x != width; ++x)
+    for (size_t x = pad; x != width - pad; ++x)
     {
-        for (size_t z = 0; z != depth; ++z)
+        for (size_t z = pad; z != depth - pad; ++z)
         {
             size_t y =
                 std::round(std::sin(x / period_x * 2 * M_PI) *
                            std::sin(z / period_y * 2 * M_PI) * amplitude) +
-                amplitude + 16;
-            volume(x, y, z) = top;
+                amplitude + side / 8;
+            volume(x, y, z) = 1;
 
             size_t y2 =
-                std::round(std::sin(x / period_x * 2 * M_PI + M_PI/2) *
-                           std::sin(z / period_y * 2 * M_PI + M_PI/2) *
+                std::round(std::sin(x / period_x * 2 * M_PI + M_PI / 2) *
+                           std::sin(z / period_y * 2 * M_PI + M_PI / 2) *
                            amplitude) +
-                (height - amplitude - 1 - 16);
-            volume(x, y2, z) = bottom;
+                (height - amplitude - 1 - side / 8);
+            volume(x, y2, z) = 1;
 
             for (unsigned i = y + 1; i < y2; ++i)
-                volume(x, i, z) = middle;
+                volume(x, i, z) = 1;
         }
     }
 

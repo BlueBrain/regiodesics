@@ -194,22 +194,6 @@ private:
     bool _paint;
 };
 
-namespace std
-{
-istream& operator>>(istream& in, std::pair<unsigned int, unsigned int>& pair)
-{
-    string s;
-    in >> s;
-    const auto pos = s.find(':');
-    pair.first = boost::lexical_cast<unsigned int>(s.substr(0, pos));
-    if (pos == string::npos)
-        pair.second = std::numeric_limits<unsigned int>::max();
-    else
-        pair.second = boost::lexical_cast<unsigned int>(s.substr(pos + 1));
-    return in;
-}
-}
-
 int main(int argc, char* argv[])
 {
     std::pair<size_t, size_t> cropX{0, std::numeric_limits<size_t>::max()};
@@ -300,14 +284,16 @@ int main(int argc, char* argv[])
         }
     }
 
-    Volume<unsigned short> inVolume(filename);
+    Volume<unsigned short> inVolume = filename == ":test:"
+                                          ? createVolume(64, 8)
+                                          : Volume<unsigned short>(filename);
     std::cout << "Input volume dimensions: " << inVolume.width() << " "
               << inVolume.height() << " " << inVolume.depth() << std::endl;
 
     Volume<char> shell = shellFile.empty() ? annotateBoundaryVoxels(inVolume)
                                            : Volume<char>(shellFile);
 
-    if (inVolume.dimensions() != shell.dimensions())
+    if (filename != ":test:" && inVolume.dimensions() != shell.dimensions())
     {
         std::cerr << "Invalid shell volume" << std::endl;
         return -1;
