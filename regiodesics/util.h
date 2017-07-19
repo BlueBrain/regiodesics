@@ -32,6 +32,7 @@ istream& operator>>(istream& in, std::pair<size_t, size_t>& pair)
         pair.second = boost::lexical_cast<size_t>(s.substr(pos + 1));
     return in;
 }
+}
 
 osg::Node* createLines(const Volume<char>& volume)
 {

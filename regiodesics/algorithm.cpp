@@ -5,6 +5,51 @@
 
 namespace
 {
+template <typename T>
+PointT<T> operator-(const PointT<T>& p, const PointT<T>& q)
+{
+    PointT<T> t(p);
+    boost::geometry::subtract_point(t, q);
+    return t;
+}
+
+template <typename T>
+PointT<T> operator+(const PointT<T>& p, const PointT<T>& q)
+{
+    PointT<T> t(p);
+    boost::geometry::add_point(t, q);
+    return t;
+}
+
+template <typename T>
+PointT<T>& operator+=(PointT<T>& p, const PointT<T>& q)
+{
+    boost::geometry::add_point(p, q);
+    return p;
+}
+
+template <typename T>
+PointT<T>& operator-=(PointT<T>& p, const PointT<T>& q)
+{
+    boost::geometry::subtract_point(p, q);
+    return p;
+}
+
+template <typename T>
+PointT<T> operator*(const PointT<T>& p, const T& a)
+{
+    PointT<T> t(p);
+    boost::geometry::multiply_value(t, a);
+    return t;
+}
+
+template <typename T, typename U>
+PointT<T> point3d_cast(const PointT<U>& point)
+{
+    return PointT<T>(static_cast<T>(point.template get<0>()),
+                     static_cast<T>(point.template get<1>()),
+                     static_cast<T>(point.template get<2>()));
+}
 
 float _relativePositionOnSegment(const Segment& segment, Point c)
 {
@@ -65,8 +110,7 @@ Segments findNearestVoxels(const Volume<char>& volume, char from, char to)
     return segments;
 }
 
-Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
-                                           const size_t setSize)
+SegmentIndex computeSegmentIndex(const Volume<char>& shell)
 {
     auto segments = findNearestVoxels(shell, Bottom, Top);
     auto segments2 = findNearestVoxels(shell, Top, Bottom);
@@ -75,11 +119,14 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
     for (const auto& segment : segments2)
         segments.push_back(Segment(segment.second, segment.first));
 
-    // Creating the index.
-    using SegmentIndex =
-        boost::geometry::index::rtree<Segment,
-                                      boost::geometry::index::rstar<16>>;
-    SegmentIndex index(segments.begin(), segments.end());
+    return SegmentIndex(segments.begin(), segments.end());
+}
+
+Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
+                                           const size_t setSize,
+                                           SegmentIndex* inIndex)
+{
+    const SegmentIndex& index = inIndex ? *inIndex : computeSegmentIndex(shell);
 
     size_t width, height, depth;
     std::tie(width, height, depth) = shell.dimensions();
@@ -148,6 +195,67 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
     }
 
     return field;
+}
+
+Volume<Point> computeOrientations(const Volume<char>& shell,
+                                  const size_t setSize,
+                                  SegmentIndex* inIndex)
+{
+    const SegmentIndex& index = inIndex ? *inIndex : computeSegmentIndex(shell);
+
+    size_t width, height, depth;
+    std::tie(width, height, depth) = shell.dimensions();
+
+    Volume<Point> orientations(width, height, depth);
+    boost::progress_display progress(width * height);
+
+    for (size_t i = 0; i < width; ++i)
+    {
+#pragma omp parallel for schedule(dynamic)
+        for (size_t j = 0; j < height; ++j)
+        {
+            for (size_t k = 0; k < depth; ++k)
+            {
+                auto value = shell(i, j, k);
+                if (value == 0)
+                {
+                    orientations(i, j, k) = Point(0, 0, 0);
+                    continue;
+                }
+
+                Segments neighbours;
+                Coords coords(i, j, k);
+                using namespace boost::geometry;
+                index.query(index::nearest(coords, setSize),
+                            std::back_inserter(neighbours));
+
+                Point average(0, 0, 0);
+                for (const auto& segment : neighbours)
+                {
+                    Point p(segment.first.get<0>(), segment.first.get<1>(),
+                            segment.first.get<2>());
+                    Point q(segment.second.get<0>(), segment.second.get<1>(),
+                            segment.second.get<2>());
+                    SegmentF s(p, q);
+                    subtract_point(q, p);
+                    divide_value(q, length(s));
+                    average += q;
+                }
+
+                auto x = average.get<0>();
+                auto y = average.get<1>();
+                auto z = average.get<2>();
+                auto l = std::sqrt(x * x + y * y + z * z);
+                divide_value(average, l);
+
+                orientations(i, j, k) = average;
+            }
+#pragma omp critical
+            ++progress;
+        }
+    }
+
+    return orientations;
 }
 
 Volume<char> annotateLayers(const Volume<float>& distanceField,
