@@ -10,8 +10,8 @@
 #include <tuple>
 #include <utility>
 
-#include <boost/geometry/index/rtree.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/geometry/index/rtree.hpp>
 
 template <typename T>
 class Volume
@@ -58,15 +58,13 @@ public:
         }
 
         if (dataInfo["endian"] != "little")
-            throw(std::runtime_error(
-                "Big endian volumes are not supported"));
+            throw(std::runtime_error("Big endian volumes are not supported"));
 
         std::stringstream dims(dataInfo["sizes"]);
         dims >> _width >> _height >> _depth;
         const size_t size = _width * _height * _depth;
         if (dims.fail())
-            throw(std::runtime_error(
-                "Error parsing volume size"));
+            throw(std::runtime_error("Error parsing volume size"));
 
         std::fstream inFile;
         inFile.open(filename, std::ios::in | std::ios::binary);
@@ -77,6 +75,14 @@ public:
 
     Volume(const Volume&) = delete;
     Volume& operator=(const Volume&) = delete;
+
+    Volume<T> copy() const
+    {
+        Volume<T> other(_width, _height, _depth);
+        memcpy(other._data.get(), _data.get(),
+               sizeof(T) * _width * _height * _depth);
+        return other;
+    }
 
     void save(const std::string& filename) const
     {
@@ -94,9 +100,7 @@ public:
     size_t depth() const { return _depth; }
     void set(const T& value)
     {
-        apply([value](size_t, size_t, size_t, const T&) {
-            return value;
-        });
+        apply([value](size_t, size_t, size_t, const T&) { return value; });
     }
 
     template <typename Functor>
@@ -134,12 +138,11 @@ public:
     {
         Index idx;
 
-        visit([&idx, value](size_t x, size_t y, size_t z, const T& v)
-              {
-                  if (v != value)
-                      return;
-                  idx.insert(Coords(x, y, z));
-              });
+        visit([&idx, value](size_t x, size_t y, size_t z, const T& v) {
+            if (v != value)
+                return;
+            idx.insert(Coords(x, y, z));
+        });
         return idx;
     }
 
@@ -166,24 +169,26 @@ public:
         static_assert(!std::is_integral<T>::value,
                       "Interpolation of integer volumes is not valid");
 
-        size_t i = x;
-        size_t j = y;
-        size_t k = z;
+        U dx = x == _width - 1 ? 1 : x - std::floor(x);
+        U dy = y == _height - 1 ? 1 : y - std::floor(y);
+        U dz = z == _depth - 1 ? 1 : z - std::floor(z);
 
-        U a = x - i;
-        U b = y - j;
-        U c = z - k;
+        size_t i = x - dx;
+        size_t j = y - dy;
+        size_t k = z - dz;
 
-        T p[] = {(*this)(i + 1, j, k) * a + (*this)(i, j, k) * (1 - a),
-                 (*this)(i + 1, j + 1, k) * a + (*this)(i, j + 1, k) * (1 - a),
-                 (*this)(i + 1, j, k + 1) * a + (*this)(i, j, k + 1) * (1 - a),
-                 (*this)(i + 1, j + 1, k + 1) * a +
-                     (*this)(i, j + 1, k + 1) * (1 - a)};
-        T q[] = {p[1] * b + p[0] * (1 - b), p[3] * b + p[2] * (1 - b)};
-        return q[1] * c + q[0] * (1 - c);
+        T p[] = {(*this)(i + 1, j, k) * dx + (*this)(i, j, k) * (1 - dx),
+                 (*this)(i + 1, j + 1, k) * dx +
+                     (*this)(i, j + 1, k) * (1 - dx),
+                 (*this)(i + 1, j, k + 1) * dx +
+                     (*this)(i, j, k + 1) * (1 - dx),
+                 (*this)(i + 1, j + 1, k + 1) * dx +
+                     (*this)(i, j + 1, k + 1) * (1 - dx)};
+        T q[] = {p[1] * dy + p[0] * (1 - dy), p[3] * dy + p[2] * (1 - dy)};
+        return q[1] * dz + q[0] * (1 - dz);
     }
 
-    T & operator()(size_t x, size_t y, size_t z)
+    T& operator()(size_t x, size_t y, size_t z)
     {
         assert(x < _width);
         assert(y < _height);
@@ -193,10 +198,10 @@ public:
 
     const T& operator()(size_t x, size_t y, size_t z) const
     {
-            assert(x < _width);
-            assert(y < _height);
-            assert(z < _depth);
-            return _data[z * _width * _height + y * _width + x];
+        assert(x < _width);
+        assert(y < _height);
+        assert(z < _depth);
+        return _data[z * _width * _height + y * _width + x];
     }
 
 private:
@@ -250,6 +255,5 @@ inline void Volume<Point4>::save(const std::string& filename) const
     assert(sizeof(Point4) == sizeof(float) * 4);
     NRRD::save<float>(filename, (float*)_data.get(), 4, dims);
 }
-
 
 #endif
