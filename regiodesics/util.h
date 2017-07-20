@@ -34,7 +34,27 @@ istream& operator>>(istream& in, std::pair<size_t, size_t>& pair)
 }
 }
 
-osg::Node* createLines(const Volume<char>& volume)
+std::vector<float> computeSplitPoints(const std::vector<float>& thicknesses)
+{
+    std::vector<float> splitPoints;
+    // At least two points are needed.
+    if (thicknesses.size() < 2)
+        return splitPoints;
+
+    std::vector<float> cummulative({0.f});
+    for (auto x : thicknesses)
+        cummulative.push_back(cummulative.back() + x);
+    const float total = cummulative.back();
+    // The last (=total) and first (=0) values are ignored
+    for (auto i = ++cummulative.begin(); i != --cummulative.end(); ++i)
+    {
+        std::cout << *i / total << std::endl;
+        splitPoints.push_back(*i / total);
+    }
+    return splitPoints;
+}
+
+osg::Node* createNearestNeighbourLines(const Volume<char>& volume)
 {
     size_t width, height, depth;
     std::tie(width, height, depth) = volume.dimensions();

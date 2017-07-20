@@ -263,24 +263,13 @@ int main(int argc, char* argv[])
                                    0.663563684133};
     if (vm.count("thickness"))
     {
-        const auto& thicknesses = vm["thickness"].as<std::vector<float>>();
-
-        if (thicknesses.size() < 2)
+        splitPoints =
+            computeSplitPoints(vm["thickness"].as<std::vector<float>>());
+        if (splitPoints.empty())
         {
             std::cerr << "The thickness option must include at least two values"
                       << std::endl;
             return -1;
-        }
-        splitPoints.clear();
-        std::vector<float> cummulative({0.f});
-        for (auto x : thicknesses)
-            cummulative.push_back(cummulative.back() + x);
-        const float total = cummulative.back();
-        // The last (=total) and first (=0) values are ignored
-        for (auto i = ++cummulative.begin(); i != --cummulative.end(); ++i)
-        {
-            std::cout << *i / total << std::endl;
-            splitPoints.push_back(*i / total);
         }
     }
 
