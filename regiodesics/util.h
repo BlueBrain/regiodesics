@@ -41,11 +41,62 @@ std::vector<float> computeSplitPoints(const std::vector<float>& thicknesses)
     const float total = cummulative.back();
     // The last (=total) and first (=0) values are ignored
     for (auto i = ++cummulative.begin(); i != --cummulative.end(); ++i)
-    {
-        std::cout << *i / total << std::endl;
         splitPoints.push_back(*i / total);
-    }
+
     return splitPoints;
+}
+
+osg::Node* createLineGlyphs(const Volume<Point3f>& vectorField,
+                            const Volume<char>& shell,
+                            const float scaling = 10)
+{
+    size_t width, height, depth;
+    std::tie(width, height, depth) = vectorField.dimensions();
+
+    osg::Vec3Array* vertices = new osg::Vec3Array();
+    osg::Vec4Array* colors = new osg::Vec4Array();
+
+    size_t count = 0;
+    for (size_t x = 0; x < width; ++x)
+    {
+        for (size_t y = 0; y < height; ++y)
+        {
+            for (size_t z = 0; z < depth; ++z)
+            {
+                if (shell(x, y, z) == 0)
+                    continue;
+
+                if (count++ % 1 != 0)
+                    continue;
+
+                osg::Vec3 p(x + 0.5, y + 0.5, z + 0.5);
+                vertices->push_back(p);
+                auto g = vectorField(x, y, z);
+                osg::Vec3 c(g.get<0>(), g.get<1>(), g.get<2>());
+                vertices->push_back(p + c * scaling);
+                c.normalize();
+                colors->push_back(osg::Vec4(c, 1));
+                colors->push_back(osg::Vec4(c, 1));
+            }
+        }
+    }
+
+    osg::Geometry* geometry = new osg::Geometry();
+    geometry->setVertexArray(vertices);
+    geometry->setColorArray(colors);
+    geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+
+    osg::DrawArrays* primitive =
+        new osg::DrawArrays(GL_LINES, 0, vertices->size());
+    geometry->addPrimitiveSet(primitive);
+
+    osg::Geode* geode = new osg::Geode();
+    geode->addDrawable(geometry);
+
+    osg::StateSet* stateSet = geode->getOrCreateStateSet();
+    stateSet->setAttributeAndModes(createLitLinesProgram());
+
+    return geode;
 }
 
 osg::Node* createNearestNeighbourLines(const Volume<char>& volume)

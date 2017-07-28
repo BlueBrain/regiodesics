@@ -44,7 +44,8 @@ public:
         std::map<std::string, std::string> dataInfo;
         headerSize = NRRD::parseHeader(filename, dataInfo);
         if (headerSize == 0)
-            throw(std::runtime_error("NRRD file's header is empty"));
+            throw(std::runtime_error("Error parsing " + filename +
+                                     ": error reading header"));
 
         _checkMetadata(dataInfo);
 
@@ -249,23 +250,28 @@ inline void Volume<float>::_checkMetadata(
         throw(std::runtime_error("Invalid dimensions: " + dims));
 }
 
-template <>
-inline void Volume<PointTN<char, 4>>::_checkMetadata(
-    std::map<std::string, std::string>& metadata)
-{
-    const auto& type = metadata["type"];
-    if (type != "char")
-        throw(std::runtime_error("Unexpected volume type: " + type));
-    const auto& dims = metadata["dimension"];
-    if (std::atoi(dims.c_str()) != 4)
-        throw(std::runtime_error("Invalid dimensions: " + dims));
-    std::stringstream sizes(metadata["sizes"]);
-    size_t first;
-    sizes >> first;
-    if (first != 4)
-        throw(std::runtime_error("Invalid size in first dimension"));
-    std::getline(sizes, metadata["sizes"]);
-}
+#define CHECK_VECTOR_FIELD_METADATA(T, N)                                 \
+    template <>                                                           \
+    inline void Volume<PointTN<T, N>>::_checkMetadata(                    \
+        std::map<std::string, std::string>& metadata)                     \
+    {                                                                     \
+        const auto& type = metadata["type"];                              \
+        if (type != #T)                                                   \
+            throw(std::runtime_error("Unexpected volume type: " + type)); \
+        const auto& dims = metadata["dimension"];                         \
+        if (std::atoi(dims.c_str()) != 4)                                 \
+            throw(std::runtime_error("Invalid dimensions: " + dims));     \
+        std::stringstream sizes(metadata["sizes"]);                       \
+        size_t first;                                                     \
+        sizes >> first;                                                   \
+        if (first != N)                                                   \
+            throw(std::runtime_error("Invalid size in first dimension")); \
+        std::getline(sizes, metadata["sizes"]);                           \
+    }
+
+CHECK_VECTOR_FIELD_METADATA(char, 4)
+CHECK_VECTOR_FIELD_METADATA(float, 3)
+
 
 // Partial template specialization of member functions in template classes is
 // not allowed by the standard, hence we have to enumerate the cases needed
@@ -283,5 +289,7 @@ VOLUME_POINT_SAVE(float, 2)
 VOLUME_POINT_SAVE(float, 3)
 VOLUME_POINT_SAVE(float, 4)
 VOLUME_POINT_SAVE(char, 4)
+
+#undef VOLUME_POINT_SAVE
 
 #endif

@@ -130,8 +130,7 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
         {
             for (size_t z = 0; z < depth; ++z)
             {
-                auto value = shell(x, y, z);
-                if (value == 0)
+                if (shell(x, y, z) == 0)
                 {
                     field(x, y, z) = NAN;
                     continue;
@@ -186,9 +185,9 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
     return field;
 }
 
-Volume<Point3f> computeOrientations(const Volume<char>& shell,
-                                    const size_t setSize,
-                                    const SegmentIndex* inIndex)
+std::tuple<Volume<Point3f>, Volume<float>> computeOrientationsAndHeights(
+    const Volume<char>& shell, const size_t setSize,
+    const SegmentIndex* inIndex)
 {
     const SegmentIndex& index = inIndex ? *inIndex : computeSegmentIndex(shell);
 
@@ -196,6 +195,7 @@ Volume<Point3f> computeOrientations(const Volume<char>& shell,
     std::tie(width, height, depth) = shell.dimensions();
 
     Volume<Point3f> orientations(width, height, depth);
+    Volume<float> heights(width, height, depth);
     boost::progress_display progress(width * height);
 
     for (size_t i = 0; i < width; ++i)
@@ -205,10 +205,10 @@ Volume<Point3f> computeOrientations(const Volume<char>& shell,
         {
             for (size_t k = 0; k < depth; ++k)
             {
-                auto value = shell(i, j, k);
-                if (value == 0)
+                if (shell(i, j, k) == 0)
                 {
                     orientations(i, j, k) = Point3f(0, 0, 0);
+                    heights(i, j, k) = NAN;
                     continue;
                 }
 
@@ -218,33 +218,39 @@ Volume<Point3f> computeOrientations(const Volume<char>& shell,
                 index.query(index::nearest(coords, setSize),
                             std::back_inserter(neighbours));
 
-                Point3f average(0, 0, 0);
+                Point3f averageDirection(0, 0, 0);
+                float averageLength = 0;
                 for (const auto& segment : neighbours)
                 {
                     Point3f p(segment.first.get<0>(), segment.first.get<1>(),
-                              segment.first.get<2>());
+                            segment.first.get<2>());
                     Point3f q(segment.second.get<0>(), segment.second.get<1>(),
-                              segment.second.get<2>());
+                            segment.second.get<2>());
                     Segmentf s(p, q);
                     subtract_point(q, p);
-                    divide_value(q, length(s));
-                    average += q;
+                    const auto l = length(s);
+                    averageLength += l;
+                    divide_value(q, l);
+                    averageDirection += q;
                 }
 
-                auto x = average.get<0>();
-                auto y = average.get<1>();
-                auto z = average.get<2>();
-                auto l = std::sqrt(x * x + y * y + z * z);
-                divide_value(average, l);
+                const auto x = averageDirection.get<0>();
+                const auto y = averageDirection.get<1>();
+                const auto z = averageDirection.get<2>();
+                const auto l = std::sqrt(x * x + y * y + z * z);
+                divide_value(averageDirection, l);
 
-                orientations(i, j, k) = average;
+                averageLength = averageLength / neighbours.size();
+
+                orientations(i, j, k) = averageDirection;
+                heights(i, j, k) = averageLength;
             }
 #pragma omp critical
             ++progress;
         }
     }
 
-    return orientations;
+    return std::make_tuple(std::move(orientations), std::move(heights));
 }
 
 Volume<char> annotateLayers(const Volume<float>& distanceField,

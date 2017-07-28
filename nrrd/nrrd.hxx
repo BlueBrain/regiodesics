@@ -216,7 +216,7 @@ namespace NRRD
 		auto t=types.find(hdr_fields["type"]);
 		if (t==types.end())
 		{
-			std::cerr << "NRRD::parseHeader<T>(...): Unsopported type: " << hdr_fields["type"] << std::endl;
+			std::cerr << "NRRD::parseHeader<T>(...): Unsupported type: " << hdr_fields["type"] << std::endl;
 			return 0;
 		}
 		hdr_fields["type"]=t->second;

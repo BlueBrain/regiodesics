@@ -7,7 +7,10 @@
 
 #include <iostream>
 
-void saveOrientations(const Volume<Point3f>& gradients, Volume<char>& shell);
+void saveOrientations(const Volume<Point3f>& orientations,
+                      const Volume<char>& shell);
+void saveDistances(const Volume<float>& heights,
+                   const Volume<float>& relatives);
 
 int main(int argc, char* argv[])
 {
@@ -27,6 +30,8 @@ int main(int argc, char* argv[])
     po::options_description hidden;
     hidden.add_options()
         ("shell,s", po::value<std::string>()->required(), "Shell volume");
+    hidden.add_options()
+        ("distances,d", po::value<std::string>()->required(), "Relative distance field");
     // clang-format on
 
     po::options_description allOptions;
@@ -34,6 +39,7 @@ int main(int argc, char* argv[])
 
     po::positional_options_description positional;
     positional.add("shell", 1);
+    positional.add("distances", 1);
 
     po::variables_map vm;
 
@@ -45,10 +51,11 @@ int main(int argc, char* argv[])
         std::cout << "Brain region geodesics" << std::endl;
         return 0;
     }
-    if (vm.count("shell") == 0 || vm.count("help"))
+    if (vm.count("shell") == 0 || vm.count("distances") == 0 ||
+        vm.count("help"))
     {
-        std::cout << "Usage: " << argv[0] << " distance_map shell [options]"
-                  << std::endl
+        std::cout << "Usage: " << argv[0]
+                  << " shell relative-distances [options]" << std::endl
                   << options << std::endl;
         return 0;
     }
@@ -65,52 +72,63 @@ int main(int argc, char* argv[])
     }
 
     Volume<char> shell(vm["shell"].as<std::string>());
-
-    osg::ref_ptr<osg::Group> scene(new osg::Group());
-
     clearXRange(shell, cropX, '\0');
+    Volume<float> relatives(vm["distances"].as<std::string>());
 
-    auto orientations = computeOrientations(shell, 1000);
+    const auto index = computeSegmentIndex(shell);
+    std::cout << "Computing orientations and absolute distances" << std::endl;
+    const auto result = computeOrientationsAndHeights(shell, 10, &index);
+    std::cout << "Saving" << std::endl;
+    auto& orientations = std::get<0>(result);
+    auto& heights = std::get<1>(result);
     saveOrientations(orientations, shell);
+    saveDistances(heights, relatives);
 }
 
-
-void saveOrientations(const Volume<Point3f>& gradients, Volume<char>& shell)
+void saveOrientations(const Volume<Point3f>& orientations,
+                      const Volume<char>& shell)
 {
-    auto depth = gradients.depth();
-    auto height = gradients.height();
-    auto width = gradients.width();
-    Volume<Point4f> orientations(width, height, depth);
+    using Point4c = PointTN<char, 4>;
+    Volume<Point4c> output(orientations.width(), orientations.height(),
+                           orientations.depth());
 
-    for (size_t i = 0; i != width; ++i)
-    {
-        for (size_t j = 0; j != height; ++j)
+    output.apply([&orientations, &shell](size_t i, size_t j, size_t k,
+                                         const Point4c&) {
+
+        const auto orientation = orientations(i, j, k);
+        Point4c p;
+        if (shell(i, j, k) == 0)
         {
-            for (size_t k = 0; k != depth; ++k)
-            {
-                Point4f p;
-                if (shell(i, j, k) != 0)
-                {
-                    auto gradient = gradients(i, j, k);
-                    auto x = gradient.get<0>();
-                    auto y = gradient.get<1>();
-                    auto z = gradient.get<2>();
-                    auto l = std::sqrt(x * x + y * y + z * z);
-                    p.set<0>(x / l);
-                    p.set<1>(y / l);
-                    p.set<2>(z / l);
-                    p.set<3>(0);
-                }
-                else
-                {
-                    p.set<0>(0);
-                    p.set<1>(0);
-                    p.set<2>(0);
-                    p.set<3>(0);
-                }
-                orientations(i, j, k) = p;
-            }
+            p.set<0>(0);
+            p.set<1>(0);
+            p.set<2>(0);
+            p.set<3>(0);
         }
-    }
-    orientations.save("orientations.nrrd");
+        else
+        {
+            const auto x = std::max(-1.f, std::min(1.f, orientation.get<0>()));
+            const auto y = std::max(-1.f, std::min(1.f, orientation.get<1>()));
+            const auto z = std::max(-1.f, std::min(1.f, orientation.get<2>()));
+            const auto l = std::sqrt(x * x + y * y + z * z);
+            p.set<0>(static_cast<int8_t>(std::round(x / l * 127)));
+            p.set<1>(static_cast<int8_t>(std::round(y / l * 127)));
+            p.set<2>(static_cast<int8_t>(std::round(z / l * 127)));
+            p.set<3>(0);
+        }
+        return p;
+    });
+    output.save("orientations.nrrd");
+}
+
+void saveDistances(const Volume<float>& heights, const Volume<float>& relatives)
+{
+    Volume<float> output(heights.width(), heights.height(), heights.depth());
+    output.apply(
+        [&heights, &relatives](size_t i, size_t j, size_t k, const float&) {
+            if (std::isnan(heights(i, j, k)))
+                return NAN;
+            return heights(i, j, k) * relatives(i, j, k);
+        });
+    heights.save("heights.nrrd");
+    output.save("distances.nrrd");
 }

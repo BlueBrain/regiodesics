@@ -159,6 +159,7 @@ public:
             }
             else if (ea.getKey() == 's')
             {
+                std::cout << "Saving shell volume" << std::endl;
                 _volume.save("shell.nrrd");
                 return true;
             }
@@ -315,9 +316,12 @@ int main(int argc, char* argv[])
 
         scene->removeChild(0, scene->getNumChildren());
 
+        std::cout << "Computing relative distances" << std::endl;
         auto distances = computeRelativeDistanceField(shell, 1000);
-        distances.save("distanceMap.nrrd");
+        std::cout << "Annotating layers" << std::endl;
         auto layers = annotateLayers(distances, splitPoints);
+        std::cout << "Saving" << std::endl;
+        distances.save("relativeDistances.nrrd");
         layers.save("layers.nrrd");
 
         Bricks::ColorMap layerColors;

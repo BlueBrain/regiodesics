@@ -19,9 +19,9 @@ SegmentIndex computeSegmentIndex(const Volume<char>& shell);
 Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
                                            size_t lineSetSize,
                                            const SegmentIndex* index = 0);
-Volume<Point3f> computeOrientations(const Volume<char>& shell,
-                                    size_t lineSetSize,
-                                    const SegmentIndex* index = 0);
+std::tuple<Volume<Point3f>, Volume<float>> computeOrientationsAndHeights(
+    const Volume<char>& shell, size_t lineSetSize,
+    const SegmentIndex* index = 0);
 
 Volume<char> annotateLayers(const Volume<float>& distanceField,
                             const std::vector<float>& separations);
