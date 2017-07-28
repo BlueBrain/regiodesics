@@ -15,19 +15,24 @@ const char Shell = 2;
 const char Bottom = 3;
 const char Top = 4;
 
-using Coords = boost::geometry::model::point<unsigned int, 3,
-                                             boost::geometry::cs::cartesian>;
+template <typename T, size_t N>
+using PointTN =
+    boost::geometry::model::point<T, N, boost::geometry::cs::cartesian>;
 
-template <typename T>
-using PointT =
-    boost::geometry::model::point<T, 3, boost::geometry::cs::cartesian>;
-using Point = PointT<float>;
-
-using Point4 =
-    boost::geometry::model::point<float, 4, boost::geometry::cs::cartesian>;
+using Point2f = PointTN<float, 2>;
+using Point3f = PointTN<float, 3>;
+using Point4f = PointTN<float, 4>;
+using Coords = PointTN<unsigned int, 3>;
 
 using Segment = boost::geometry::model::segment<Coords>;
-using SegmentF = boost::geometry::model::segment<Point>;
+using Segmentf = boost::geometry::model::segment<Point3f>;
 using Segments = std::vector<Segment>;
 
+template <typename T, typename U>
+PointTN<T, 3> point3d_cast(const PointTN<U, 3>& point)
+{
+    return PointTN<T, 3>(static_cast<T>(point.template get<0>()),
+                         static_cast<T>(point.template get<1>()),
+                         static_cast<T>(point.template get<2>()));
+}
 #endif

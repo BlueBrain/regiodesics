@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-void saveOrientations(const Volume<Point>& gradients, Volume<char>& shell);
+void saveOrientations(const Volume<Point3f>& gradients, Volume<char>& shell);
 
 int main(int argc, char* argv[])
 {
@@ -75,12 +75,12 @@ int main(int argc, char* argv[])
 }
 
 
-void saveOrientations(const Volume<Point>& gradients, Volume<char>& shell)
+void saveOrientations(const Volume<Point3f>& gradients, Volume<char>& shell)
 {
     auto depth = gradients.depth();
     auto height = gradients.height();
     auto width = gradients.width();
-    Volume<Point4> orientations(width, height, depth);
+    Volume<Point4f> orientations(width, height, depth);
 
     for (size_t i = 0; i != width; ++i)
     {
@@ -88,7 +88,7 @@ void saveOrientations(const Volume<Point>& gradients, Volume<char>& shell)
         {
             for (size_t k = 0; k != depth; ++k)
             {
-                Point4 p;
+                Point4f p;
                 if (shell(i, j, k) != 0)
                 {
                     auto gradient = gradients(i, j, k);

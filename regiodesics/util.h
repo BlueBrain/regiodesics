@@ -1,7 +1,8 @@
-#ifndef LAYERS_UTIL_H
-#define LAYERS_UTIL_H
+#ifndef REGIODESICS_UTIL_H
+#define REGIODESICS_UTIL_H
 
 #include "algorithm.h"
+#include "programs.h"
 
 #include <osg/Geode>
 #include <osg/Geometry>
@@ -10,13 +11,6 @@
 #include <boost/progress.hpp>
 
 #include <iostream>
-
-template <typename T, typename U>
-T point3d_cast(const PointT<U>& point)
-{
-    return T(point.template get<0>(), point.template get<1>(),
-             point.template get<2>());
-}
 
 namespace std
 {

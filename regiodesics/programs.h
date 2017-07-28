@@ -1,3 +1,6 @@
+#ifndef REGIODESICS_PROGRAMS_H
+#define REGIODESICS_PROGRAMS_H
+
 #include <osg/Program>
 #include <osg/Shader>
 
@@ -143,3 +146,5 @@ inline osg::Program* createLitLinesProgram()
 
     return program;
 }
+
+#endif

@@ -157,7 +157,7 @@ public:
     }
 
     template <typename U>
-    T operator()(const PointT<U>& point) const
+    T operator()(const PointTN<U, 3>& point) const
     {
         return operator()(point.template get<0>(), point.template get<1>(),
                           point.template get<2>());
@@ -210,50 +210,78 @@ private:
     size_t _height;
     size_t _depth;
 
-    void _checkMetadata(const std::map<std::string, std::string>& metadata);
+    void _checkMetadata(std::map<std::string, std::string>& metadata);
 };
 
 template <>
 inline void Volume<char>::_checkMetadata(
-    const std::map<std::string, std::string>& metadata)
+    std::map<std::string, std::string>& metadata)
 {
-    const auto& type = metadata.find("type")->second;
+    const auto& type = metadata["type"];
     if (type != "char")
         throw(std::runtime_error("Unexpected volume type: " + type));
+    const auto& dims = metadata["dimension"];
+    if (std::atoi(dims.c_str()) != 3)
+        throw(std::runtime_error("Invalid dimensions: " + dims));
 }
 
 template <>
 inline void Volume<unsigned short>::_checkMetadata(
-    const std::map<std::string, std::string>& metadata)
+    std::map<std::string, std::string>& metadata)
 {
-    const auto& type = metadata.find("type")->second;
+    const auto& type = metadata["type"];
     if (type != "unsigned short")
         throw(std::runtime_error("Unexpected volume type: " + type));
+    const auto& dims = metadata["dimension"];
+    if (std::atoi(dims.c_str()) != 3)
+        throw(std::runtime_error("Invalid dimensions: " + dims));
 }
 
 template <>
 inline void Volume<float>::_checkMetadata(
-    const std::map<std::string, std::string>& metadata)
+    std::map<std::string, std::string>& metadata)
 {
-    const auto& type = metadata.find("type")->second;
+    const auto& type = metadata["type"];
     if (type != "float")
         throw(std::runtime_error("Unexpected volume type: " + type));
+    const auto& dims = metadata["dimension"];
+    if (std::atoi(dims.c_str()) != 3)
+        throw(std::runtime_error("Invalid dimensions: " + dims));
 }
 
 template <>
-inline void Volume<Point>::save(const std::string& filename) const
+inline void Volume<PointTN<char, 4>>::_checkMetadata(
+    std::map<std::string, std::string>& metadata)
 {
-    int dims[] = {int(_width), int(_height), int(_depth), 3};
-    assert(sizeof(Point) == sizeof(float) * 3);
-    NRRD::save<float>(filename, (float*)_data.get(), 4, dims);
+    const auto& type = metadata["type"];
+    if (type != "char")
+        throw(std::runtime_error("Unexpected volume type: " + type));
+    const auto& dims = metadata["dimension"];
+    if (std::atoi(dims.c_str()) != 4)
+        throw(std::runtime_error("Invalid dimensions: " + dims));
+    std::stringstream sizes(metadata["sizes"]);
+    size_t first;
+    sizes >> first;
+    if (first != 4)
+        throw(std::runtime_error("Invalid size in first dimension"));
+    std::getline(sizes, metadata["sizes"]);
 }
 
-template <>
-inline void Volume<Point4>::save(const std::string& filename) const
-{
-    int dims[] = {4, int(_width), int(_height), int(_depth)};
-    assert(sizeof(Point4) == sizeof(float) * 4);
-    NRRD::save<float>(filename, (float*)_data.get(), 4, dims);
-}
+// Partial template specialization of member functions in template classes is
+// not allowed by the standard, hence we have to enumerate the cases needed
+// with full template specialization.
+#define VOLUME_POINT_SAVE(T, N)                                                \
+    template <>                                                                \
+    inline void Volume<PointTN<T, N>>::save(const std::string& filename) const \
+    {                                                                          \
+        int dims[] = {N, int(_width), int(_height), int(_depth)};              \
+        assert(sizeof(PointTN<T, N>) == sizeof(T) * N);                        \
+        NRRD::save<T>(filename, (T*)_data.get(), 4, dims);                     \
+    }
+
+VOLUME_POINT_SAVE(float, 2)
+VOLUME_POINT_SAVE(float, 3)
+VOLUME_POINT_SAVE(float, 4)
+VOLUME_POINT_SAVE(char, 4)
 
 #endif

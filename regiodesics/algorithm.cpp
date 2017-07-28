@@ -5,69 +5,58 @@
 
 namespace
 {
-template <typename T>
-PointT<T> operator-(const PointT<T>& p, const PointT<T>& q)
+template <typename T, size_t N>
+PointTN<T, N> operator-(const PointTN<T, N>& p, const PointTN<T, N>& q)
 {
-    PointT<T> t(p);
+    PointTN<T, N> t(p);
     boost::geometry::subtract_point(t, q);
     return t;
 }
 
-template <typename T>
-PointT<T> operator+(const PointT<T>& p, const PointT<T>& q)
+template <typename T, size_t N>
+PointTN<T, N> operator+(const PointTN<T, N>& p, const PointTN<T, N>& q)
 {
-    PointT<T> t(p);
+    PointTN<T, N> t(p);
     boost::geometry::add_point(t, q);
     return t;
 }
 
-template <typename T>
-PointT<T>& operator+=(PointT<T>& p, const PointT<T>& q)
+template <typename T, size_t N>
+PointTN<T, N>& operator+=(PointTN<T, N>& p, const PointTN<T, N>& q)
 {
     boost::geometry::add_point(p, q);
     return p;
 }
 
-template <typename T>
-PointT<T>& operator-=(PointT<T>& p, const PointT<T>& q)
+template <typename T, size_t N>
+PointTN<T, N>& operator-=(PointTN<T, N>& p, const PointTN<T, N>& q)
 {
     boost::geometry::subtract_point(p, q);
     return p;
 }
 
-template <typename T>
-PointT<T> operator*(const PointT<T>& p, const T& a)
+template <typename T, size_t N>
+PointTN<T, N> operator*(const PointTN<T, N>& p, const T& a)
 {
-    PointT<T> t(p);
+    PointTN<T, N> t(p);
     boost::geometry::multiply_value(t, a);
     return t;
 }
 
-template <typename T, typename U>
-PointT<T> point3d_cast(const PointT<U>& point)
-{
-    return PointT<T>(static_cast<T>(point.template get<0>()),
-                     static_cast<T>(point.template get<1>()),
-                     static_cast<T>(point.template get<2>()));
-}
-
-float _relativePositionOnSegment(const Segment& segment, Point c)
+float _relativePositionOnSegment(const Segment& segment, Point3f c)
 {
     using namespace boost::geometry;
-    Point p(segment.first.get<0>(), segment.first.get<1>(),
-            segment.first.get<2>());
-    Point q(segment.second.get<0>(), segment.second.get<1>(),
-            segment.second.get<2>());
-    SegmentF s(p, q);
+    Point3f p = point3d_cast<float>(segment.first);
+    Point3f q = point3d_cast<float>(segment.second);
+    Segmentf s(p, q);
     subtract_point(q, p);
     const float totalLength = length(s);
     divide_value(q, length(s));
     subtract_point(c, p);
     multiply_value(q, dot_product(q, c));
     add_point(q, p);
-    const float t = length(SegmentF(p, q)) / totalLength;
+    const float t = length(Segmentf(p, q)) / totalLength;
     return std::min(1.f, std::max(0.f, t));
-
 }
 }
 
@@ -124,7 +113,7 @@ SegmentIndex computeSegmentIndex(const Volume<char>& shell)
 
 Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
                                            const size_t setSize,
-                                           SegmentIndex* inIndex)
+                                           const SegmentIndex* inIndex)
 {
     const SegmentIndex& index = inIndex ? *inIndex : computeSegmentIndex(shell);
 
@@ -144,7 +133,7 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
                 auto value = shell(x, y, z);
                 if (value == 0)
                 {
-                    field(x, y, z) = -1;
+                    field(x, y, z) = NAN;
                     continue;
                 }
 
@@ -165,7 +154,7 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
                 // near the outer shell.
                 Coords coords(x, y, z);
 
-                const Point point(x, y, z);
+                const Point3f point(x, y, z);
                 index.query(boost::geometry::index::nearest(coords, 1),
                             std::back_inserter(neighbours));
                 float relativeToClosest =
@@ -197,16 +186,16 @@ Volume<float> computeRelativeDistanceField(const Volume<char>& shell,
     return field;
 }
 
-Volume<Point> computeOrientations(const Volume<char>& shell,
-                                  const size_t setSize,
-                                  SegmentIndex* inIndex)
+Volume<Point3f> computeOrientations(const Volume<char>& shell,
+                                    const size_t setSize,
+                                    const SegmentIndex* inIndex)
 {
     const SegmentIndex& index = inIndex ? *inIndex : computeSegmentIndex(shell);
 
     size_t width, height, depth;
     std::tie(width, height, depth) = shell.dimensions();
 
-    Volume<Point> orientations(width, height, depth);
+    Volume<Point3f> orientations(width, height, depth);
     boost::progress_display progress(width * height);
 
     for (size_t i = 0; i < width; ++i)
@@ -219,7 +208,7 @@ Volume<Point> computeOrientations(const Volume<char>& shell,
                 auto value = shell(i, j, k);
                 if (value == 0)
                 {
-                    orientations(i, j, k) = Point(0, 0, 0);
+                    orientations(i, j, k) = Point3f(0, 0, 0);
                     continue;
                 }
 
@@ -229,14 +218,14 @@ Volume<Point> computeOrientations(const Volume<char>& shell,
                 index.query(index::nearest(coords, setSize),
                             std::back_inserter(neighbours));
 
-                Point average(0, 0, 0);
+                Point3f average(0, 0, 0);
                 for (const auto& segment : neighbours)
                 {
-                    Point p(segment.first.get<0>(), segment.first.get<1>(),
-                            segment.first.get<2>());
-                    Point q(segment.second.get<0>(), segment.second.get<1>(),
-                            segment.second.get<2>());
-                    SegmentF s(p, q);
+                    Point3f p(segment.first.get<0>(), segment.first.get<1>(),
+                              segment.first.get<2>());
+                    Point3f q(segment.second.get<0>(), segment.second.get<1>(),
+                              segment.second.get<2>());
+                    Segmentf s(p, q);
                     subtract_point(q, p);
                     divide_value(q, length(s));
                     average += q;
@@ -274,7 +263,7 @@ Volume<char> annotateLayers(const Volume<float>& distanceField,
             for (size_t z = 0; z < depth; ++z)
             {
                 auto value = distanceField(x, y, z);
-                if (value < 0)
+                if (std::isnan(value))
                 {
                     layers(x, y, z) = 0;
                     continue;
