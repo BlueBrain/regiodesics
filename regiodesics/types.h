@@ -28,6 +28,44 @@ using Segment = boost::geometry::model::segment<Coords>;
 using Segmentf = boost::geometry::model::segment<Point3f>;
 using Segments = std::vector<Segment>;
 
+template <typename T, size_t N>
+PointTN<T, N> operator-(const PointTN<T, N>& p, const PointTN<T, N>& q)
+{
+    PointTN<T, N> t(p);
+    boost::geometry::subtract_point(t, q);
+    return t;
+}
+
+template <typename T, size_t N>
+PointTN<T, N> operator+(const PointTN<T, N>& p, const PointTN<T, N>& q)
+{
+    PointTN<T, N> t(p);
+    boost::geometry::add_point(t, q);
+    return t;
+}
+
+template <typename T, size_t N>
+PointTN<T, N>& operator+=(PointTN<T, N>& p, const PointTN<T, N>& q)
+{
+    boost::geometry::add_point(p, q);
+    return p;
+}
+
+template <typename T, size_t N>
+PointTN<T, N>& operator-=(PointTN<T, N>& p, const PointTN<T, N>& q)
+{
+    boost::geometry::subtract_point(p, q);
+    return p;
+}
+
+template <typename T, size_t N>
+PointTN<T, N> operator*(const PointTN<T, N>& p, const T& a)
+{
+    PointTN<T, N> t(p);
+    boost::geometry::multiply_value(t, a);
+    return t;
+}
+
 template <typename T, typename U>
 PointTN<T, 3> point3d_cast(const PointTN<U, 3>& point)
 {

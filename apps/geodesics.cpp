@@ -14,6 +14,7 @@ void saveDistances(const Volume<float>& heights,
 
 int main(int argc, char* argv[])
 {
+    size_t averageSize = 1000;
     std::pair<size_t, size_t> cropX{0, std::numeric_limits<size_t>::max()};
 
     namespace po = boost::program_options;
@@ -22,6 +23,9 @@ int main(int argc, char* argv[])
     options.add_options()
         ("help,h", "Produce help message")
         ("version,v", "Show program name/version banner and exit")
+        ("average-size,a", po::value<size_t>(&averageSize)->value_name("lines"),
+         "Size of k-nearest neighbour query of top to shell lines used to"
+         " approximate orientations")
         ("crop-x,x", po::value<std::pair<size_t, size_t>>(&cropX)->
                          value_name("<min>[:<max>]"),
          "Optional crop range for the input volume. Values outside this "
@@ -77,7 +81,8 @@ int main(int argc, char* argv[])
 
     const auto index = computeSegmentIndex(shell);
     std::cout << "Computing orientations and absolute distances" << std::endl;
-    const auto result = computeOrientationsAndHeights(shell, 10, &index);
+    const auto result = computeOrientationsAndHeights(shell, averageSize,
+                                                      &index);
     std::cout << "Saving" << std::endl;
     auto& orientations = std::get<0>(result);
     auto& heights = std::get<1>(result);

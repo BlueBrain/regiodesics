@@ -10,3 +10,10 @@ target_include_directories(layer_segmenter
 set(GEODESICS_SOURCES geodesics.cpp)
 set(GEODESICS_LINK_LIBRARIES ${Boost_LIBRARIES} regiodesics)
 common_application(geodesics)
+
+set(DISPLAY_GEODESICS_SOURCES display_geodesics.cpp)
+set(DISPLAY_GEODESICS_LINK_LIBRARIES ${OPENSCENEGRAPH_LIBRARIES} regiodesics
+  ${Boost_LIBRARIES})
+common_application(display_geodesics)
+target_include_directories(display_geodesics
+  PRIVATE ${OPENSCENEGRAPH_INCLUDE_DIRS})

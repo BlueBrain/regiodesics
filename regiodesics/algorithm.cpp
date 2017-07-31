@@ -5,44 +5,6 @@
 
 namespace
 {
-template <typename T, size_t N>
-PointTN<T, N> operator-(const PointTN<T, N>& p, const PointTN<T, N>& q)
-{
-    PointTN<T, N> t(p);
-    boost::geometry::subtract_point(t, q);
-    return t;
-}
-
-template <typename T, size_t N>
-PointTN<T, N> operator+(const PointTN<T, N>& p, const PointTN<T, N>& q)
-{
-    PointTN<T, N> t(p);
-    boost::geometry::add_point(t, q);
-    return t;
-}
-
-template <typename T, size_t N>
-PointTN<T, N>& operator+=(PointTN<T, N>& p, const PointTN<T, N>& q)
-{
-    boost::geometry::add_point(p, q);
-    return p;
-}
-
-template <typename T, size_t N>
-PointTN<T, N>& operator-=(PointTN<T, N>& p, const PointTN<T, N>& q)
-{
-    boost::geometry::subtract_point(p, q);
-    return p;
-}
-
-template <typename T, size_t N>
-PointTN<T, N> operator*(const PointTN<T, N>& p, const T& a)
-{
-    PointTN<T, N> t(p);
-    boost::geometry::multiply_value(t, a);
-    return t;
-}
-
 float _relativePositionOnSegment(const Segment& segment, Point3f c)
 {
     using namespace boost::geometry;

@@ -16,7 +16,7 @@
 #include <boost/signals2/signal.hpp>
 
 osg::Vec4 TopColor(1, 1, 0, 1);
-osg::Vec4 BottomColor(1, 0, 0, 1);
+osg::Vec4 BottomColor(0, 0.5, 1, 1);
 
 class Painter : public osgGA::GUIEventHandler
 {
