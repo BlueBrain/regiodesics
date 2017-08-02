@@ -241,9 +241,9 @@ Volume<char> annotateLayers(const Volume<float>& distanceField,
                 char layer = 1;
                 for (auto s : separations)
                 {
-                    if (value < s)
+                    if (value > 1 - s)
                         break;
-                    ++layer;
+                    layer++;
                 }
                 layers(x, y, z) = layer;
             }
