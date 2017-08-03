@@ -81,12 +81,19 @@ int main(int argc, char* argv[])
 
     const auto index = computeSegmentIndex(shell);
     std::cout << "Computing orientations and absolute distances" << std::endl;
-    const auto result = computeOrientationsAndHeights(shell, averageSize,
-                                                      &index);
+    auto result = computeOrientationsAndHeights(shell, averageSize, &index);
     std::cout << "Saving" << std::endl;
     auto& orientations = std::get<0>(result);
     auto& heights = std::get<1>(result);
     saveOrientations(orientations, shell);
+    // For correcting the distances from voxel space to volume space we take
+    // into account that the volume is isotropic.
+    const auto axis = orientations.volumeAxis(0);
+    const auto correction = std::sqrt(boost::geometry::dot_product(axis, axis));
+    heights.apply([correction](size_t, size_t, size_t, const float x) {
+        return x * correction;
+    });
+
     saveDistances(heights, relatives);
 }
 
@@ -100,7 +107,6 @@ void saveOrientations(const Volume<Point3f>& orientations,
     output.apply([&orientations, &shell](size_t i, size_t j, size_t k,
                                          const Point4c&) {
 
-        const auto orientation = orientations(i, j, k);
         Point4c p;
         if (shell(i, j, k) == 0)
         {
@@ -111,14 +117,26 @@ void saveOrientations(const Volume<Point3f>& orientations,
         }
         else
         {
-            const auto x = std::max(-1.f, std::min(1.f, orientation.get<0>()));
-            const auto y = std::max(-1.f, std::min(1.f, orientation.get<1>()));
-            const auto z = std::max(-1.f, std::min(1.f, orientation.get<2>()));
-            const auto l = std::sqrt(x * x + y * y + z * z);
-            p.set<0>(static_cast<int8_t>(std::round(x / l * 127)));
-            p.set<1>(static_cast<int8_t>(std::round(y / l * 127)));
-            p.set<2>(static_cast<int8_t>(std::round(z / l * 127)));
-            p.set<3>(0);
+            // This code ignores the possible mirrorings being applied by
+            // by the NRRD space directions
+            auto orientation = orientations(i, j, k);
+            const auto vx = orientations.volumeAxis(0);
+            const auto vy = orientations.volumeAxis(1);
+            const auto vz = orientations.volumeAxis(2);
+            orientation = vx * orientation.get<0>() +
+                          vy * orientation.get<1>() +
+                          vz * orientation.get<2>();
+            osg::Vec3 v(orientation.get<0>(), orientation.get<1>(),
+                        orientation.get<2>());
+            v.normalize();
+
+            osg::Vec3 up(0, 1, 0);
+            osg::Quat q(std::acos(up * v), up ^ v);
+            q /= q.length();
+            p.set<0>(static_cast<int8_t>(std::round(q[0] * 127)));
+            p.set<1>(static_cast<int8_t>(std::round(q[1] * 127)));
+            p.set<2>(static_cast<int8_t>(std::round(q[2] * 127)));
+            p.set<3>(static_cast<int8_t>(std::round(q[3] * 127)));
         }
         return p;
     });

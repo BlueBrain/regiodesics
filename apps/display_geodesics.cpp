@@ -2,6 +2,7 @@
 #include "regiodesics/Bricks.h"
 
 #include <boost/program_options.hpp>
+#include <boost/geometry/algorithms/distance.hpp>
 
 #include <osg/Geometry>
 #include <osgViewer/Viewer>
@@ -56,49 +57,65 @@ std::vector<Point3f> findIsosurfaceSamples(const Volume<float>& distances,
     return points;
 }
 
-Volume<Point3f> convertOrientations(const Volume<char>& shell,
+Volume<Point4f> convertOrientations(const Volume<char>& shell,
                                     const Volume<Point4c>& orientations)
 {
     auto depth = orientations.depth();
     auto height = orientations.height();
     auto width = orientations.width();
-    Volume<Point3f> output(width, height, depth);
+    Volume<Point4f> output(width, height, depth, orientations.metadata());
     output.apply([&orientations, &shell](size_t i, size_t j, size_t k,
-                                         const Point3f&) {
+                                         const Point4f&) {
         if (shell(i, j, k) == 0)
-            return Point3f(0, 0, 0);
+            return Point4f(0, 0, 0);
 
         const auto o = orientations(i, j, k);
-        return Point3f(o.get<0>() / 127., o.get<1>() / 127., o.get<2>() / 127.);
+        Point4f p;
+        p.set<0>(o.get<0>() / 127.f);
+        p.set<1>(o.get<1>() / 127.f);
+        p.set<2>(o.get<2>() / 127.f);
+        p.set<3>(o.get<3>() / 127.f);
+        return p;
     });
     return output;
 }
 
 osg::Node* createDistanceLines(const std::vector<Point3f>& points,
-                               const Volume<Point3f>& orientations,
+                               const Volume<Point4f>& orientations,
                                const Volume<float>& heights,
                                const Volume<float>& distances)
 {
     osg::Vec3Array* vertices = new osg::Vec3Array;
     osg::Vec4Array* colors = new osg::Vec4Array;
+    const auto vx = orientations.volumeAxis(0);
+    const auto vy = orientations.volumeAxis(1);
+    const auto vz = orientations.volumeAxis(2);
+    osg::Matrix transform(vx.get<0>(), vy.get<0>(), vz.get<0>(), 0,
+                          vx.get<1>(), vy.get<1>(), vz.get<1>(), 0,
+                          vx.get<2>(), vy.get<2>(), vz.get<2>(), 0,
+                          0, 0, 0, 1);
     for (auto point : points)
     {
         const auto o = orientations(point);
-        osg::Vec3 direction(o.get<0>(), o.get<1>(), o.get<2>());
-        direction.normalize();
+        osg::Quat orientation(o.get<0>(), o.get<1>(), o.get<2>(), o.get<3>());
+        osg::Vec3 direction = orientation * osg::Vec3(0, 1, 0);
         const auto height = heights(point);
         const auto distance = distances(point);
         if (std::isnan(height) || std::isnan(distance))
             continue;
-        const osg::Vec3 p(point.get<0>(), point.get<1>(), point.get<2>());
+        const osg::Vec3 p =
+            osg::Vec3(point.get<0>(), point.get<1>(), point.get<2>()) *
+            transform;
         vertices->push_back(p);
-        colors->push_back(osg::Vec4(1, 0, 0, 1));
+        osg::Vec4 topColor(1, 0.5, 0, 1);
+        osg::Vec4 bottomColor(0.5, 0, 1, 1);
+        colors->push_back(osg::Vec4(bottomColor));
         vertices->push_back(p - direction * distance);
-        colors->push_back(osg::Vec4(1, 0, 0, 1));
+        colors->push_back(osg::Vec4(bottomColor));
         vertices->push_back(p);
-        colors->push_back(osg::Vec4(0, 1, 0.2, 1));
+        colors->push_back(osg::Vec4(topColor));
         vertices->push_back(p + direction * (height - distance));
-        colors->push_back(osg::Vec4(0, 1, 0.2, 1));
+        colors->push_back(osg::Vec4(topColor));
     }
     osg::DrawArrays* primitive =
         new osg::DrawArrays(GL_LINES, 0, vertices->size());
@@ -214,7 +231,7 @@ int main(int argc, char* argv[])
     Bricks::ColorMap colors;
     colors[Top] = TopColor;
     colors[Bottom] = BottomColor;
-    Bricks bricks(shell, {Top, Bottom}, colors);
+    Bricks bricks(shell, {Top, Bottom}, colors, true);
     scene->addChild(bricks.node());
 
     osgViewer::Viewer viewer;
