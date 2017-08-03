@@ -5,6 +5,8 @@
 #include <osg/Program>
 #include <osg/Shader>
 
+#include <osg/MatrixTransform>
+
 #include <boost/progress.hpp>
 
 inline void addShader(osg::Program* program, osg::Shader::Type type,
@@ -32,6 +34,7 @@ inline osg::Program* createBrickShadingProgram()
     #extension GL_EXT_geometry_shader4 : enable
     #extension GL_EXT_gpu_shader4 : enable
 
+    uniform vec3 sizes;
     varying in vec3 coordsIn[];
 
     varying out vec3 normal;
@@ -40,14 +43,17 @@ inline osg::Program* createBrickShadingProgram()
 
     void main()
     {
-        vec4 x = vec4(gl_NormalMatrix * vec3(1, 0, 0), 0);
-        vec4 y = vec4(gl_NormalMatrix * vec3(0, 1, 0), 0);
-        vec4 z = vec4(gl_NormalMatrix * vec3(0, 0, 1), 0);
+        vec4 x = normalize(vec4(gl_NormalMatrix * vec3(1, 0, 0), 0));
+        vec4 y = normalize(vec4(gl_NormalMatrix * vec3(0, 1, 0), 0));
+        vec4 z = normalize(vec4(gl_NormalMatrix * vec3(0, 0, 1), 0));
         vec4 p = gl_PositionIn[0];
+        vec4 sx = x * sizes.x;
+        vec4 sy = y * sizes.y;
+        vec4 sz = z * sizes.z;
 
-        vec4 px = gl_ProjectionMatrix * x;
-        vec4 py = gl_ProjectionMatrix * y;
-        vec4 pz = gl_ProjectionMatrix * z;
+        vec4 px = gl_ProjectionMatrix * sx;
+        vec4 py = gl_ProjectionMatrix * sy;
+        vec4 pz = gl_ProjectionMatrix * sz;
         vec4 pp = gl_ProjectionMatrix * p;
 
         gl_FrontColor = gl_FrontColorIn[0];
@@ -55,13 +61,13 @@ inline osg::Program* createBrickShadingProgram()
 
         vec4 corners[8];
         corners[0] = p;
-        corners[1] = p + x;
-        corners[2] = p + x + z;
-        corners[3] = p + z;
-        corners[4] = p + y;
-        corners[5] = p + y + x;
-        corners[6] = p + y + x + z;
-        corners[7] = p + y + z;
+        corners[1] = p + sx;
+        corners[2] = p + sx + sz;
+        corners[3] = p + sz;
+        corners[4] = p + sy;
+        corners[5] = p + sy + sx;
+        corners[6] = p + sy + sx + sz;
+        corners[7] = p + sy + sz;
 
         vec4 pcorners[8];
         pcorners[0] = pp;
@@ -136,7 +142,6 @@ inline osg::Program* createBrickShadingProgram()
         vec3 r = reflect(-norm_eye, normal);
         color.rgb += vec3(0.05, 0.05, 0.05) *
                      pow(max(dot(r, norm_eye) , 0.0), 16.0);
-
         gl_FragData[0] = color;
         // All coordinates are increased by 1 so 0, 0, 0 can be used for empty
         // pixels.
@@ -155,7 +160,7 @@ inline osg::Program* createBrickShadingProgram()
 }
 
 Bricks::Bricks(const Volume<char>& volume, const std::vector<char>& values,
-               const ColorMap& colors)
+               const ColorMap& colors, bool applyTransform)
 {
     std::tie(_width, _height, _depth) = volume.dimensions();
 
@@ -201,11 +206,37 @@ Bricks::Bricks(const Volume<char>& volume, const std::vector<char>& values,
     geometry->addPrimitiveSet(primitive);
 
     osg::StateSet* stateSet = geometry->getOrCreateStateSet();
+    // Assuming isotropy
     stateSet->setAttributeAndModes(createBrickShadingProgram());
 
     osg::Geode* geode = new osg::Geode();
     geode->addDrawable(geometry);
-    _node = geode;
+
+    if (applyTransform)
+    {
+        const auto vx = volume.volumeAxis(0);
+        const auto vy = volume.volumeAxis(1);
+        const auto vz = volume.volumeAxis(2);
+        const auto voxelSize = std::sqrt(boost::geometry::dot_product(vx, vx));
+        stateSet->addUniform(
+            new osg::Uniform("sizes",
+                             osg::Vec3(voxelSize, voxelSize, voxelSize)));
+
+        osg::MatrixTransform* volumeTransform = new osg::MatrixTransform();
+        osg::Matrix transform(vx.get<0>(), vy.get<0>(), vz.get<0>(), 0,
+                              vx.get<1>(), vy.get<1>(), vz.get<1>(), 0,
+                              vx.get<2>(), vy.get<2>(), vz.get<2>(), 0,
+                              0, 0, 0, 1);
+        volumeTransform->setMatrix(transform);
+        volumeTransform->addChild(geode);
+        _node = volumeTransform;
+    }
+    else
+    {
+        stateSet->addUniform(
+            new osg::Uniform("sizes", osg::Vec3(1.f, 1.f, 1.f)));
+        _node = geode;
+    }
 }
 
 void Bricks::resetBrick(size_t x, size_t y, size_t z)
