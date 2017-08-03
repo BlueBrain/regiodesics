@@ -95,7 +95,7 @@ void saveOrientations(const Volume<Point3f>& orientations,
 {
     using Point4c = PointTN<char, 4>;
     Volume<Point4c> output(orientations.width(), orientations.height(),
-                           orientations.depth());
+                           orientations.depth(), orientations.metadata());
 
     output.apply([&orientations, &shell](size_t i, size_t j, size_t k,
                                          const Point4c&) {

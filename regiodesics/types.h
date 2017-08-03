@@ -73,4 +73,23 @@ PointTN<T, 3> point3d_cast(const PointTN<U, 3>& point)
                          static_cast<T>(point.template get<1>()),
                          static_cast<T>(point.template get<2>()));
 }
+
+template <typename T, size_t U, size_t index = 0>
+std::ostream& operator<<(std::ostream& out, const PointTN<T, U>& point)
+{
+    if (index == 0)
+        out << "(";
+    if (index == U - 1)
+    {
+        out << point.template get<index>() << ")";
+        return out;
+    }
+    else
+    {
+        out << point.template get<index>() << ", ";
+        return ::operator<<<T, U,
+               index + 1<U - 1 ? index + 1 : U - 1>(out, point);
+    }
+}
+
 #endif
