@@ -6,14 +6,14 @@
 #include "nrrd.hxx"
 
 #include <boost/filesystem/path.hpp>
-#include <boost/geometry/index/rtree.hpp>
 #include <boost/geometry/arithmetic/dot_product.hpp>
+#include <boost/geometry/index/rtree.hpp>
 
 #include <cassert>
 #include <memory>
+#include <regex>
 #include <tuple>
 #include <utility>
-#include <regex>
 
 template <typename T>
 class Volume
@@ -24,14 +24,13 @@ public:
                                       boost::geometry::index::linear<5>>;
 
     Volume(size_t width, size_t height, size_t depth,
-           const std::map<std::string, std::string>& metadata =
-           std::map<std::string, std::string>())
+           const StringMap& metadata = StringMap())
         // The storage is in colume-major order
-        : _data(new T[width * height * depth])
-        , _width(width)
-        , _height(height)
-        , _depth(depth)
-        , _metadata(metadata)
+        : _data(new T[width * height * depth]),
+          _width(width),
+          _height(height),
+          _depth(depth),
+          _metadata(metadata)
     {
         _parseCoordinateSystem(metadata);
         _fillMetadata();
@@ -229,11 +228,9 @@ public:
         return _metadata;
     }
 
-    const Point3f& volumeAxis(size_t index) const
-    {
-        return _axes[index];
-    }
-
+    // Write access, use with caution
+    std::map<std::string, std::string>& metadata() { return _metadata; }
+    const Point3f& volumeAxis(size_t index) const { return _axes[index]; }
 private:
     std::unique_ptr<T[]> _data;
     size_t _width;
@@ -254,19 +251,22 @@ private:
         }
         std::string directions = pair->second;
         std::string number = "(\\s*[+-]?[0-9]*(\\.[0-9]*)?\\s*)";
-        std::regex expr("\\s*\\(" + number + "," + number + "," + number +
-                        "\\)");
-        auto i = std::sregex_iterator(directions.begin(),
-                                      directions.end(), expr);
+        std::regex expr("\\(\\s*none\\)|\\(" + number + "," + number + "," +
+                        number + "\\)");
+        auto i =
+            std::sregex_iterator(directions.begin(), directions.end(), expr);
         size_t index = 0;
-        for (; i != std::sregex_iterator(); ++i, ++index)
+        for (; i != std::sregex_iterator(); ++i)
         {
+            auto match = *i;
+            if (index == 0 && match[0].str() == "none")
+                continue;
             if (index > 2)
                 throw std::runtime_error("Error parsing space directions");
-            auto match = *i;
             _axes[index] = Point3f(std::atof(match[1].str().c_str()),
                                    std::atof(match[3].str().c_str()),
                                    std::atof(match[5].str().c_str()));
+            index++;
         }
         if (index != 3)
             throw std::runtime_error("Error parsing space directions");
@@ -274,8 +274,9 @@ private:
 #define dot boost::geometry::dot_product
         if (dot(_axes[0], _axes[1]) != 0 || dot(_axes[1], _axes[2]) != 0 ||
             dot(_axes[0], _axes[2]) != 0)
-            throw std::runtime_error("Non orthogonal space directions are "
-                                     "not supported");
+            throw std::runtime_error(
+                "Non orthogonal space directions are "
+                "not supported");
         if (dot(_axes[0], _axes[0]) != dot(_axes[1], _axes[1]) ||
             dot(_axes[2], _axes[2]) != dot(_axes[1], _axes[1]))
             throw std::runtime_error("Anisotropic volumes are not supported");
@@ -284,17 +285,12 @@ private:
 
     void _checkMetadata(std::map<std::string, std::string>& metadata);
 
-    void _fillMetadata()
-    {
-        _metadata["kinds"] = "domain domain domain";
-    }
-
-    std::map<std::string, std::string> _metadata;
+    void _fillMetadata() { _metadata["kinds"] = "domain domain domain"; }
+    StringMap _metadata;
 };
 
 template <>
-inline void Volume<char>::_checkMetadata(
-    std::map<std::string, std::string>& metadata)
+inline void Volume<char>::_checkMetadata(StringMap& metadata)
 {
     const auto& type = metadata["type"];
     if (type != "char")
@@ -305,8 +301,7 @@ inline void Volume<char>::_checkMetadata(
 }
 
 template <>
-inline void Volume<unsigned short>::_checkMetadata(
-    std::map<std::string, std::string>& metadata)
+inline void Volume<unsigned short>::_checkMetadata(StringMap& metadata)
 {
     const auto& type = metadata["type"];
     if (type != "unsigned short")
@@ -317,8 +312,7 @@ inline void Volume<unsigned short>::_checkMetadata(
 }
 
 template <>
-inline void Volume<float>::_checkMetadata(
-    std::map<std::string, std::string>& metadata)
+inline void Volume<float>::_checkMetadata(StringMap& metadata)
 {
     const auto& type = metadata["type"];
     if (type != "float")
@@ -350,12 +344,11 @@ inline void Volume<float>::_checkMetadata(
     inline void Volume<PointTN<T, N>>::_fillMetadata()                   \
     {                                                                    \
         _metadata["kinds"] = "vector domain domain domain";              \
-        _metadata["space dimensions"] = "4";                             \
+        _metadata["space dimension"] = "4";                              \
     }
 
 CHECK_VECTOR_FIELD_METADATA(char, 4)
 CHECK_VECTOR_FIELD_METADATA(float, 3)
-
 
 // Partial template specialization of member functions in template classes is
 // not allowed by the standard, hence we have to enumerate the cases needed

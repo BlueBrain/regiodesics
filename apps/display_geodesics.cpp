@@ -63,6 +63,7 @@ Volume<Point4f> convertOrientations(const Volume<char>& shell,
     auto depth = orientations.depth();
     auto height = orientations.height();
     auto width = orientations.width();
+    auto metadata = orientations.metadata();
     Volume<Point4f> output(width, height, depth, orientations.metadata());
     output.apply([&orientations, &shell](size_t i, size_t j, size_t k,
                                          const Point4f&) {
@@ -71,10 +72,11 @@ Volume<Point4f> convertOrientations(const Volume<char>& shell,
 
         const auto o = orientations(i, j, k);
         Point4f p;
-        p.set<0>(o.get<0>() / 127.f);
-        p.set<1>(o.get<1>() / 127.f);
-        p.set<2>(o.get<2>() / 127.f);
-        p.set<3>(o.get<3>() / 127.f);
+        // NRRD quaternions are stored w x y z
+        p.set<0>(o.get<1>() / 127.f);
+        p.set<1>(o.get<2>() / 127.f);
+        p.set<2>(o.get<3>() / 127.f);
+        p.set<3>(o.get<0>() / 127.f);
         return p;
     });
     return output;

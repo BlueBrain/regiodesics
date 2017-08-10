@@ -103,6 +103,11 @@ void saveOrientations(const Volume<Point3f>& orientations,
     using Point4c = PointTN<char, 4>;
     Volume<Point4c> output(orientations.width(), orientations.height(),
                            orientations.depth(), orientations.metadata());
+    // Overriding the original metadata to provide what the consumer tools
+    // expect
+    auto& metadata = output.metadata();
+    metadata["kinds"] = "quaternion domain domain domain";
+    metadata["space directions"] = "none " + metadata["space directions"];
 
     output.apply([&orientations, &shell](size_t i, size_t j, size_t k,
                                          const Point4c&) {
@@ -133,10 +138,11 @@ void saveOrientations(const Volume<Point3f>& orientations,
             osg::Vec3 up(0, 1, 0);
             osg::Quat q(std::acos(up * v), up ^ v);
             q /= q.length();
-            p.set<0>(static_cast<int8_t>(std::round(q[0] * 127)));
-            p.set<1>(static_cast<int8_t>(std::round(q[1] * 127)));
-            p.set<2>(static_cast<int8_t>(std::round(q[2] * 127)));
-            p.set<3>(static_cast<int8_t>(std::round(q[3] * 127)));
+            // According to nrrd specs a quaternion is w x y z
+            p.set<0>(static_cast<int8_t>(std::round(q[3] * 127)));
+            p.set<1>(static_cast<int8_t>(std::round(q[0] * 127)));
+            p.set<2>(static_cast<int8_t>(std::round(q[1] * 127)));
+            p.set<3>(static_cast<int8_t>(std::round(q[2] * 127)));
         }
         return p;
     });

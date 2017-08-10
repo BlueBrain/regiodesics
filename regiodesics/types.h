@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 
 const char Void = 0;
 const char Interior = 1;
@@ -27,6 +28,8 @@ using Coords = PointTN<unsigned int, 3>;
 using Segment = boost::geometry::model::segment<Coords>;
 using Segmentf = boost::geometry::model::segment<Point3f>;
 using Segments = std::vector<Segment>;
+
+using StringMap = std::map<std::string, std::string>;
 
 template <typename T, size_t N>
 PointTN<T, N> operator-(const PointTN<T, N>& p, const PointTN<T, N>& q)
