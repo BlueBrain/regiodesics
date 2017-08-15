@@ -151,7 +151,8 @@ void saveOrientations(const Volume<Point3f>& orientations,
 
 void saveDistances(const Volume<float>& heights, const Volume<float>& relatives)
 {
-    Volume<float> output(heights.width(), heights.height(), heights.depth());
+    Volume<float> output(heights.width(), heights.height(), heights.depth(),
+                         heights.metadata());
     output.apply(
         [&heights, &relatives](size_t i, size_t j, size_t k, const float&) {
             if (std::isnan(heights(i, j, k)))
