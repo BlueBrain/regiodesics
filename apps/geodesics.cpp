@@ -115,10 +115,10 @@ void saveOrientations(const Volume<Point3f>& orientations,
         Point4c p;
         if (shell(i, j, k) == 0)
         {
-            p.set<0>(0);
-            p.set<1>(0);
-            p.set<2>(0);
-            p.set<3>(0);
+            p.set<0>(NAN);
+            p.set<1>(NAN);
+            p.set<2>(NAN);
+            p.set<3>(NAN);
         }
         else
         {
