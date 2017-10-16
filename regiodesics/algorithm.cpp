@@ -255,31 +255,48 @@ Volume<char> annotateLayers(const Volume<float>& distanceField,
     return layers;
 }
 
-template <typename T>
-void clearXRange(Volume<T>& volume, const std::pair<size_t, size_t>& range,
-                 const T&& value)
+template <typename T, int axis>
+void clearOutsideRange(Volume<T>& volume,
+                       const std::pair<size_t, size_t>& range, const T& value)
 {
-    if (range.first == 0 && range.second >= volume.width())
+    auto dimensions = volume.dimensions();
+    size_t width, height, depth;
+    std::tie(width, height, depth) = dimensions;
+
+    if (range.first == 0 && range.second >= std::get<axis>(dimensions))
         return;
 
-    for (size_t i = 0; i < range.first; ++i)
-        for (size_t j = 0; j < volume.height(); ++j)
-            for (size_t k = 0; k < volume.depth(); ++k)
+    for (size_t i = 0; i < (axis == 0 ? range.first : width); ++i)
+        for (size_t j = 0; j < (axis == 1 ? range.first : height); ++j)
+            for (size_t k = 0; k < (axis == 2 ? range.first : depth); ++k)
                 volume(i, j, k) = value;
-    for (size_t i = std::min(size_t(range.second), volume.width() - 1) + 1;
-         i < volume.width(); ++i)
-        for (size_t j = 0; j < volume.height(); ++j)
-            for (size_t k = 0; k < volume.depth(); ++k)
-                volume(i, j, k) = 0;
+
+    for (size_t i = axis == 0 ? std::min(range.second, width - 1) + 1 : 0;
+         i < width; ++i)
+    {
+        for (size_t j = axis == 1 ? std::min(range.second, height - 1) + 1 : 0;
+             j < height; ++j)
+        {
+            for (size_t k = axis == 2 ? std::min(range.second, depth - 1) + 1
+                                      : 0;
+                 k < depth; ++k)
+            {
+                volume(i, j, k) = value;
+            }
+        }
+    }
 }
 
-template void clearXRange<unsigned short>(Volume<unsigned short>&,
-                                          const std::pair<size_t, size_t>&,
-                                          const unsigned short&&);
+#define CLEAR_OUTSIDE_RANGE_AXIS(T, axis)                                      \
+    template void clearOutsideRange<T, axis>(Volume<T>&,                       \
+                                             const std::pair<size_t, size_t>&, \
+                                             T&&);
 
-template void clearXRange<char>(Volume<char>&, const std::pair<size_t, size_t>&,
-                                const char&&);
+#define CLEAR_OUTSIDE_RANGE(T)     \
+    CLEAR_OUTSIDE_RANGE_AXIS(T, 0) \
+    CLEAR_OUTSIDE_RANGE_AXIS(T, 1) \
+    CLEAR_OUTSIDE_RANGE_AXIS(T, 2)
 
-template void clearXRange<float>(Volume<float>&,
-                                 const std::pair<size_t, size_t>&,
-                                 const float&&);
+CLEAR_OUTSIDE_RANGE(unsigned short)
+CLEAR_OUTSIDE_RANGE(char)
+CLEAR_OUTSIDE_RANGE(float)

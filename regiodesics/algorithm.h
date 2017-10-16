@@ -11,8 +11,7 @@ Volume<char> annotateBoundaryVoxels(const Volume<unsigned short>& volume);
 Segments findNearestVoxels(const Volume<char>& volume, char from, char to);
 
 using SegmentIndex =
-    boost::geometry::index::rtree<Segment,
-                                  boost::geometry::index::rstar<16>>;
+    boost::geometry::index::rtree<Segment, boost::geometry::index::rstar<16>>;
 
 SegmentIndex computeSegmentIndex(const Volume<char>& shell);
 
@@ -26,8 +25,29 @@ std::tuple<Volume<Point3f>, Volume<float>> computeOrientationsAndHeights(
 Volume<char> annotateLayers(const Volume<float>& distanceField,
                             const std::vector<float>& separations);
 
+template <typename T, int axis>
+void clearOutsideRange(Volume<T>& volume,
+                       const std::pair<size_t, size_t>& range, const T& value);
+
 template <typename T>
-void clearXRange(Volume<T>& volume, const std::pair<size_t, size_t>& range,
-                 const T&& value);
+void clearOutsideXRange(Volume<T>& volume,
+                        const std::pair<size_t, size_t>& range, const T& value)
+{
+    clearOutsideRange<T, 0>(volume, range, std::forward<T>(value));
+}
+
+template <typename T>
+void clearOutsideYRange(Volume<T>& volume,
+                        const std::pair<size_t, size_t>& range, const T& value)
+{
+    clearOutsideRange<T, 1>(volume, range, std::forward<T>(value));
+}
+
+template <typename T>
+void clearOutsideZRange(Volume<T>& volume,
+                        const std::pair<size_t, size_t>& range, const T& value)
+{
+    clearOutsideRange<T, 2>(volume, range, std::forward<T>(value));
+}
 
 #endif

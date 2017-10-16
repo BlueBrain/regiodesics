@@ -37,9 +37,9 @@ std::vector<Point3f> findIsosurfaceSamples(const Volume<float>& distances,
                 // Simple first approximation, we will just find out if this
                 // voxel intersects the isosurface and add a seed point at
                 // its center.
-                bool above = corners[0] > isovalue;
                 if (std::isnan(corners[0]))
                     continue;
+                const bool above = corners[0] > isovalue;
                 for (int n = 1; n < 8; ++n)
                 {
                     if (std::isnan(corners[n]))
@@ -140,6 +140,7 @@ osg::Node* createDistanceLines(const std::vector<Point3f>& points,
 int main(int argc, char* argv[])
 {
     std::pair<size_t, size_t> cropX{0, std::numeric_limits<size_t>::max()};
+    std::pair<size_t, size_t> cropY{0, std::numeric_limits<size_t>::max()};
     std::pair<size_t, size_t> cropZ{0, std::numeric_limits<size_t>::max()};
     float seedHeight = 0.5;
 
@@ -151,25 +152,31 @@ int main(int argc, char* argv[])
         ("version,v", "Show program name/version banner and exit")
         ("crop-x,x", po::value<std::pair<size_t, size_t>>(&cropX)->
                          value_name("<min>[:<max>]"),
-         "Optional crop range for the input volume. Values outside this "
-         "range will be cleared to 0 in the input volumes.")
+         "Optional crop range in the x axis.")
+        ("crop-y,y", po::value<std::pair<size_t, size_t>>(&cropY)->
+                         value_name("<min>[:<max>]"),
+         "Optional crop range in the y axis.")
+        ("crop-z,z", po::value<std::pair<size_t, size_t>>(&cropZ)->
+                         value_name("<min>[:<max>]"),
+         "Optional crop range in the z axis.")
+        ("roi,r", po::value<std::string>(), "Region of interest")
         ("seed-height,s", po::value<float>(&seedHeight)->value_name("[0..1]"),
          "Relative height of the plane where field lines will be seeded");
 
     po::options_description hidden;
     hidden.add_options()
-        ("shell,s", po::value<std::string>()->required(), "Shell volume");
+        ("shell", po::value<std::string>()->required(), "Shell volume");
     hidden.add_options()
-        ("orientations,o", po::value<std::string>()->required(),
+        ("orientations", po::value<std::string>()->required(),
          "Orientation field");
     hidden.add_options()
-        ("heights,i", po::value<std::string>()->required(),
+        ("heights", po::value<std::string>()->required(),
          "Top to bottom Distance field");
     hidden.add_options()
-        ("distances,d", po::value<std::string>()->required(),
+        ("distances", po::value<std::string>()->required(),
          "Voxel to bottom Distance field");
     hidden.add_options()
-        ("relatives,r", po::value<std::string>()->required(),
+        ("relatives", po::value<std::string>()->required(),
          "Relative distance to bottom field");
     // clang-format on
 
@@ -220,13 +227,34 @@ int main(int argc, char* argv[])
     Volume<float> heights(vm["heights"].as<std::string>());
     Volume<float> distances(vm["distances"].as<std::string>());
     Volume<float> relatives(vm["relatives"].as<std::string>());
-    clearXRange(shell, cropX, '\0');
+    clearOutsideXRange(shell, cropX, '\0');
+    clearOutsideXRange(relatives, cropX, NAN);
+    clearOutsideXRange(heights, cropX, NAN);
+    clearOutsideYRange(shell, cropY, '\0');
+    clearOutsideYRange(heights, cropY, NAN);
+    clearOutsideYRange(relatives, cropY, NAN);
+
+    if (vm.count("roi"))
+    {
+        Volume<unsigned short> roi(vm["roi"].as<std::string>());
+        roi.visit([&shell, &relatives, &heights](size_t i, size_t j, size_t k,
+                                                 const unsigned short x) {
+                      if (x == 0)
+                      {
+                          shell(i, j , k) = '\0';
+                          relatives(i, j , k) = NAN;
+                          heights(i, j , k) = NAN;
+                      }
+                  });
+
+    }
 
     auto orientations = convertOrientations(shell, origOrientations);
 
     osg::Group* scene = new osg::Group();
 
-    std::vector<Point3f> grid = findIsosurfaceSamples(relatives, seedHeight);
+    const std::vector<Point3f> grid =
+        findIsosurfaceSamples(relatives, seedHeight);
     scene->addChild(
         createDistanceLines(grid, orientations, heights, distances));
 

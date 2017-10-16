@@ -198,6 +198,9 @@ private:
 int main(int argc, char* argv[])
 {
     std::pair<size_t, size_t> cropX{0, std::numeric_limits<size_t>::max()};
+    std::pair<size_t, size_t> cropY{0, std::numeric_limits<size_t>::max()};
+    std::pair<size_t, size_t> cropZ{0, std::numeric_limits<size_t>::max()};
+    size_t averageSize = 1000;
 
     namespace po = boost::program_options;
     // clang-format off
@@ -209,14 +212,23 @@ int main(int argc, char* argv[])
         ("thickness,t", po::value<std::vector<float>>()->multitoken(),
          "Layer thicknesses (absolute or relative). Must contain at least"
          " two values")
+        ("average-size,a", po::value<size_t>(&averageSize)->value_name("lines"),
+         "Size of k-nearest neighbour query of top to bottom lines used to"
+         " approximate relative voxel positions")
         ("crop-x,x", po::value<std::pair<size_t, size_t>>(&cropX)->
                          value_name("<min>[:<max>]"),
-         "Optional crop range for the input volume. Values outside this "
-         "range will be cleared to 0 in the input volumes.");
+         "Optional crop range for x axis.")
+        ("crop-y,y", po::value<std::pair<size_t, size_t>>(&cropY)->
+                         value_name("<min>[:<max>]"),
+         "Optional crop range for y axis.")
+        ("crop-z,z", po::value<std::pair<size_t, size_t>>(&cropZ)->
+                         value_name("<min>[:<max>]"),
+         "Optional crop range for z axis.");
+
 
     po::options_description hidden;
     hidden.add_options()
-        ("input,i", po::value<std::string>()->required(), "Input volume");
+        ("input", po::value<std::string>()->required(), "Input volume");
     // clang-format on
 
     po::options_description allOptions;
@@ -288,8 +300,12 @@ int main(int argc, char* argv[])
         std::cerr << "Invalid shell volume" << std::endl;
         return -1;
     }
-    clearXRange<unsigned short>(inVolume, cropX, 0);
-    clearXRange(shell, cropX, '\0');
+    clearOutsideXRange<unsigned short>(inVolume, cropX, 0);
+    clearOutsideXRange(shell, cropX, '\0');
+    clearOutsideYRange<unsigned short>(inVolume, cropY, 0);
+    clearOutsideYRange(shell, cropY, '\0');
+    clearOutsideZRange<unsigned short>(inVolume, cropZ, 0);
+    clearOutsideZRange(shell, cropZ, '\0');
 
     Bricks::ColorMap colors;
     colors[Top] = TopColor;
@@ -310,14 +326,14 @@ int main(int argc, char* argv[])
     osg::ref_ptr<Painter> painter = new Painter(shell, bricks, cameras[0]);
     viewer.addEventHandler(painter);
 
-    painter->done.connect([scene, &shell, &colors, splitPoints] {
+    painter->done.connect([scene, averageSize, &shell, &colors, splitPoints] {
 
         shell.save("shell.nrrd");
 
         scene->removeChild(0, scene->getNumChildren());
 
         std::cout << "Computing relative distances" << std::endl;
-        auto distances = computeRelativeDistanceField(shell, 1000);
+        auto distances = computeRelativeDistanceField(shell, averageSize);
         std::cout << "Annotating layers" << std::endl;
         auto layers = annotateLayers(distances, splitPoints);
         std::cout << "Saving" << std::endl;

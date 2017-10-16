@@ -24,18 +24,14 @@ int main(int argc, char* argv[])
         ("help,h", "Produce help message")
         ("version,v", "Show program name/version banner and exit")
         ("average-size,a", po::value<size_t>(&averageSize)->value_name("lines"),
-         "Size of k-nearest neighbour query of top to shell lines used to"
-         " approximate orientations")
-        ("crop-x,x", po::value<std::pair<size_t, size_t>>(&cropX)->
-                         value_name("<min>[:<max>]"),
-         "Optional crop range for the input volume. Values outside this "
-         "range will be cleared to 0 in the input volumes.");
+         "Size of k-nearest neighbour query of top to bottom lines used to"
+         " approximate orientations");
 
     po::options_description hidden;
     hidden.add_options()
-        ("shell,s", po::value<std::string>()->required(), "Shell volume");
+        ("shell", po::value<std::string>()->required(), "Shell volume");
     hidden.add_options()
-        ("distances,d", po::value<std::string>()->required(), "Relative distance field");
+        ("distances", po::value<std::string>()->required(), "Relative distance field");
     // clang-format on
 
     po::options_description allOptions;
@@ -76,7 +72,6 @@ int main(int argc, char* argv[])
     }
 
     Volume<char> shell(vm["shell"].as<std::string>());
-    clearXRange(shell, cropX, '\0');
     Volume<float> relatives(vm["distances"].as<std::string>());
 
     const auto index = computeSegmentIndex(shell);
@@ -115,10 +110,10 @@ void saveOrientations(const Volume<Point3f>& orientations,
         Point4c p;
         if (shell(i, j, k) == 0)
         {
-            p.set<0>(NAN);
-            p.set<1>(NAN);
-            p.set<2>(NAN);
-            p.set<3>(NAN);
+            p.set<0>(0);
+            p.set<1>(0);
+            p.set<2>(0);
+            p.set<3>(0);
         }
         else
         {
