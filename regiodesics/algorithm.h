@@ -27,25 +27,25 @@ Volume<char> annotateLayers(const Volume<float>& distanceField,
 
 template <typename T, int axis>
 void clearOutsideRange(Volume<T>& volume,
-                       const std::pair<size_t, size_t>& range, const T& value);
+                       const std::pair<size_t, size_t>& range, T&& value);
 
 template <typename T>
 void clearOutsideXRange(Volume<T>& volume,
-                        const std::pair<size_t, size_t>& range, const T& value)
+                        const std::pair<size_t, size_t>& range, T&& value)
 {
     clearOutsideRange<T, 0>(volume, range, std::forward<T>(value));
 }
 
 template <typename T>
 void clearOutsideYRange(Volume<T>& volume,
-                        const std::pair<size_t, size_t>& range, const T& value)
+                        const std::pair<size_t, size_t>& range, T&& value)
 {
     clearOutsideRange<T, 1>(volume, range, std::forward<T>(value));
 }
 
 template <typename T>
 void clearOutsideZRange(Volume<T>& volume,
-                        const std::pair<size_t, size_t>& range, const T& value)
+                        const std::pair<size_t, size_t>& range, T&& value)
 {
     clearOutsideRange<T, 2>(volume, range, std::forward<T>(value));
 }

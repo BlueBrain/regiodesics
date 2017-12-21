@@ -257,7 +257,7 @@ Volume<char> annotateLayers(const Volume<float>& distanceField,
 
 template <typename T, int axis>
 void clearOutsideRange(Volume<T>& volume,
-                       const std::pair<size_t, size_t>& range, const T& value)
+                       const std::pair<size_t, size_t>& range, T&& value)
 {
     auto dimensions = volume.dimensions();
     size_t width, height, depth;
