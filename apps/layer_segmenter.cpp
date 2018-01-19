@@ -8,6 +8,7 @@
 #include <osgGA/GUIEventAdapter>
 #include <osgViewer/Renderer>
 #include <osgViewer/Viewer>
+#include <osgViewer/ViewerEventHandlers>
 
 #include <cmath>
 
@@ -195,6 +196,40 @@ private:
     bool _paint;
 };
 
+Volume<char> segment(Volume<char>& shell, const size_t averageSize,
+                     const std::vector<float>& splitPoints)
+{
+    std::cout << "Computing relative distances" << std::endl;
+    auto distances = computeRelativeDistanceField(shell, averageSize);
+    std::cout << "Annotating layers" << std::endl;
+    auto layers = annotateLayers(distances, splitPoints);
+    std::cout << "Saving" << std::endl;
+    distances.save("relativeDistances.nrrd");
+    layers.save("layers.nrrd");
+    return layers;
+}
+
+Volume<unsigned short> loadVolume(const std::string& filename)
+{
+    try
+    {
+        return Volume<unsigned short>(filename);
+    }
+    catch (std::runtime_error&)
+    {
+        // Try converting the volume from unsigned char into short
+        Volume<unsigned char> in(filename);
+        size_t width, height, depth;
+        std::tie(width, height, depth) = in.dimensions();
+        Volume<unsigned short> out(width, height, depth, in.metadata());
+        for (size_t x = 0; x < width; ++x)
+            for (size_t y = 0; y < height; ++y)
+                for (size_t z = 0; z < depth; ++z)
+                    out(x, y, z) = in(x, y, z);
+        return out;
+    }
+}
+
 int main(int argc, char* argv[])
 {
     std::pair<size_t, size_t> cropX{0, std::numeric_limits<size_t>::max()};
@@ -223,7 +258,9 @@ int main(int argc, char* argv[])
          "Optional crop range for y axis.")
         ("crop-z,z", po::value<std::pair<size_t, size_t>>(&cropZ)->
                          value_name("<min>[:<max>]"),
-         "Optional crop range for z axis.");
+         "Optional crop range for z axis.")
+        ("segment",
+         "Proceed directly segmentation, shell volume must be provided.");
 
 
     po::options_description hidden;
@@ -266,6 +303,13 @@ int main(int argc, char* argv[])
         return -1;
     }
 
+    if (vm.count("segment") && !vm.count("shell"))
+    {
+        std::cerr << "--segment must be provided an annotation with --shell"
+                  << std::endl;
+        return -1;
+    }
+
     std::string filename = vm["input"].as<std::string>();
     std::string shellFile;
     if (vm.count("shell"))
@@ -286,9 +330,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    Volume<unsigned short> inVolume = filename == ":test:"
-                                          ? createVolume(64, 8)
-                                          : Volume<unsigned short>(filename);
+    Volume<unsigned short> inVolume =
+        filename == ":test:" ? createVolume(64, 8) : loadVolume(filename);
     std::cout << "Input volume dimensions: " << inVolume.width() << " "
               << inVolume.height() << " " << inVolume.depth() << std::endl;
 
@@ -306,6 +349,12 @@ int main(int argc, char* argv[])
     clearOutsideYRange(shell, cropY, '\0');
     clearOutsideZRange<unsigned short>(inVolume, cropZ, 0);
     clearOutsideZRange(shell, cropZ, '\0');
+
+    if (vm.count("segment"))
+    {
+        segment(shell, averageSize, splitPoints);
+        return 0;
+    }
 
     Bricks::ColorMap colors;
     colors[Top] = TopColor;
@@ -330,15 +379,7 @@ int main(int argc, char* argv[])
 
         shell.save("shell.nrrd");
 
-        scene->removeChild(0, scene->getNumChildren());
-
-        std::cout << "Computing relative distances" << std::endl;
-        auto distances = computeRelativeDistanceField(shell, averageSize);
-        std::cout << "Annotating layers" << std::endl;
-        auto layers = annotateLayers(distances, splitPoints);
-        std::cout << "Saving" << std::endl;
-        distances.save("relativeDistances.nrrd");
-        layers.save("layers.nrrd");
+        auto layers = segment(shell, averageSize, splitPoints);
 
         Bricks::ColorMap layerColors;
         layerColors[1] = osg::Vec4(1.0, 0, 0, 1);
@@ -348,6 +389,7 @@ int main(int argc, char* argv[])
         layerColors[5] = osg::Vec4(0, 1.0, 1.0, 1);
         layerColors[6] = osg::Vec4(0, 0.5, 0.5, 1);
         Bricks layerBricks(layers, {1, 2, 3, 4, 5, 6}, layerColors);
+        scene->removeChild(0, scene->getNumChildren());
         scene->addChild(layerBricks.node());
     });
 

@@ -1,11 +1,12 @@
-#include "regiodesics/util.h"
 #include "regiodesics/Bricks.h"
+#include "regiodesics/util.h"
 
-#include <boost/program_options.hpp>
 #include <boost/geometry/algorithms/distance.hpp>
+#include <boost/program_options.hpp>
 
 #include <osg/Geometry>
 #include <osgViewer/Viewer>
+#include <osgViewer/ViewerEventHandlers>
 
 osg::Vec4 TopColor(1, 1, 0, 1);
 osg::Vec4 BottomColor(0, 0.5, 1, 1);
@@ -26,14 +27,11 @@ std::vector<Point3f> findIsosurfaceSamples(const Volume<float>& distances,
         {
             for (size_t k = 0; k != depth - 1; ++k)
             {
-                float corners[] = {distances(i, j, k),
-                                   distances(i, j, k + 1),
-                                   distances(i, j + 1, k),
-                                   distances(i, j + 1, k + 1),
-                                   distances(i + 1, j, k),
-                                   distances(i + 1, j, k + 1),
-                                   distances(i + 1, j + 1, k),
-                                   distances(i + 1, j + 1, k + 1)};
+                float corners[] = {
+                    distances(i, j, k),         distances(i, j, k + 1),
+                    distances(i, j + 1, k),     distances(i, j + 1, k + 1),
+                    distances(i + 1, j, k),     distances(i + 1, j, k + 1),
+                    distances(i + 1, j + 1, k), distances(i + 1, j + 1, k + 1)};
                 // Simple first approximation, we will just find out if this
                 // voxel intersects the isosurface and add a seed point at
                 // its center.
@@ -65,20 +63,20 @@ Volume<Point4f> convertOrientations(const Volume<char>& shell,
     auto width = orientations.width();
     auto metadata = orientations.metadata();
     Volume<Point4f> output(width, height, depth, orientations.metadata());
-    output.apply([&orientations, &shell](size_t i, size_t j, size_t k,
-                                         const Point4f&) {
-        if (shell(i, j, k) == 0)
-            return Point4f(0, 0, 0);
+    output.apply(
+        [&orientations, &shell](size_t i, size_t j, size_t k, const Point4f&) {
+            if (shell(i, j, k) == 0)
+                return Point4f(0, 0, 0);
 
-        const auto o = orientations(i, j, k);
-        Point4f p;
-        // NRRD quaternions are stored w x y z
-        p.set<0>(o.get<1>() / 127.f);
-        p.set<1>(o.get<2>() / 127.f);
-        p.set<2>(o.get<3>() / 127.f);
-        p.set<3>(o.get<0>() / 127.f);
-        return p;
-    });
+            const auto o = orientations(i, j, k);
+            Point4f p;
+            // NRRD quaternions are stored w x y z
+            p.set<0>(o.get<1>() / 127.f);
+            p.set<1>(o.get<2>() / 127.f);
+            p.set<2>(o.get<3>() / 127.f);
+            p.set<3>(o.get<0>() / 127.f);
+            return p;
+        });
     return output;
 }
 
@@ -92,10 +90,9 @@ osg::Node* createDistanceLines(const std::vector<Point3f>& points,
     const auto vx = orientations.volumeAxis(0);
     const auto vy = orientations.volumeAxis(1);
     const auto vz = orientations.volumeAxis(2);
-    osg::Matrix transform(vx.get<0>(), vy.get<0>(), vz.get<0>(), 0,
-                          vx.get<1>(), vy.get<1>(), vz.get<1>(), 0,
-                          vx.get<2>(), vy.get<2>(), vz.get<2>(), 0,
-                          0, 0, 0, 1);
+    osg::Matrix transform(vx.get<0>(), vy.get<0>(), vz.get<0>(), 0, vx.get<1>(),
+                          vy.get<1>(), vz.get<1>(), 0, vx.get<2>(), vy.get<2>(),
+                          vz.get<2>(), 0, 0, 0, 0, 1);
     for (auto point : points)
     {
         const auto o = orientations(point);
@@ -233,20 +230,22 @@ int main(int argc, char* argv[])
     clearOutsideYRange(shell, cropY, '\0');
     clearOutsideYRange(heights, cropY, NAN);
     clearOutsideYRange(relatives, cropY, NAN);
+    clearOutsideZRange(shell, cropZ, '\0');
+    clearOutsideZRange(heights, cropZ, NAN);
+    clearOutsideZRange(relatives, cropZ, NAN);
 
     if (vm.count("roi"))
     {
         Volume<unsigned short> roi(vm["roi"].as<std::string>());
         roi.visit([&shell, &relatives, &heights](size_t i, size_t j, size_t k,
                                                  const unsigned short x) {
-                      if (x == 0)
-                      {
-                          shell(i, j , k) = '\0';
-                          relatives(i, j , k) = NAN;
-                          heights(i, j , k) = NAN;
-                      }
-                  });
-
+            if (x == 0)
+            {
+                shell(i, j, k) = '\0';
+                relatives(i, j, k) = NAN;
+                heights(i, j, k) = NAN;
+            }
+        });
     }
 
     auto orientations = convertOrientations(shell, origOrientations);
@@ -266,6 +265,6 @@ int main(int argc, char* argv[])
 
     osgViewer::Viewer viewer;
     viewer.setSceneData(scene);
+    viewer.addEventHandler(new osgViewer::WindowSizeHandler);
     viewer.run();
 }
-

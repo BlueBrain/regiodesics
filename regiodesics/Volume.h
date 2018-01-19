@@ -68,8 +68,11 @@ public:
             dataFile = dataFilePath.string();
         }
 
-        if (dataInfo["endian"] != "little")
+        if (dataInfo["endian"] != "little" && dataInfo["type"] != "char" &&
+            dataInfo["type"] != "unsigned char")
+        {
             throw std::runtime_error("Big endian volumes are not supported");
+        }
 
         std::stringstream dims(dataInfo["sizes"]);
         dims >> _width >> _height >> _depth;
@@ -289,38 +292,22 @@ private:
     StringMap _metadata;
 };
 
-template <>
-inline void Volume<char>::_checkMetadata(StringMap& metadata)
-{
-    const auto& type = metadata["type"];
-    if (type != "char")
-        throw std::runtime_error("Unexpected volume type: " + type);
-    const auto& dims = metadata["dimension"];
-    if (std::atoi(dims.c_str()) != 3)
-        throw std::runtime_error("Invalid dimensions: " + dims);
-}
+#define CHECK_NUMERIC_TYPE_METADATA(T)                                   \
+    template <>                                                          \
+    inline void Volume<T>::_checkMetadata(StringMap& metadata)           \
+    {                                                                    \
+        const auto& type = metadata["type"];                             \
+        if (type != #T)                                                  \
+            throw std::runtime_error("Unexpected volume type: " + type); \
+        const auto& dims = metadata["dimension"];                        \
+        if (std::atoi(dims.c_str()) != 3)                                \
+            throw std::runtime_error("Invalid dimensions: " + dims);     \
+    }
 
-template <>
-inline void Volume<unsigned short>::_checkMetadata(StringMap& metadata)
-{
-    const auto& type = metadata["type"];
-    if (type != "unsigned short")
-        throw std::runtime_error("Unexpected volume type: " + type);
-    const auto& dims = metadata["dimension"];
-    if (std::atoi(dims.c_str()) != 3)
-        throw std::runtime_error("Invalid dimensions: " + dims);
-}
-
-template <>
-inline void Volume<float>::_checkMetadata(StringMap& metadata)
-{
-    const auto& type = metadata["type"];
-    if (type != "float")
-        throw std::runtime_error("Unexpected volume type: " + type);
-    const auto& dims = metadata["dimension"];
-    if (std::atoi(dims.c_str()) != 3)
-        throw std::runtime_error("Invalid dimensions: " + dims);
-}
+CHECK_NUMERIC_TYPE_METADATA(char)
+CHECK_NUMERIC_TYPE_METADATA(unsigned char)
+CHECK_NUMERIC_TYPE_METADATA(unsigned short)
+CHECK_NUMERIC_TYPE_METADATA(float)
 
 #define CHECK_VECTOR_FIELD_METADATA(T, N)                                \
     template <>                                                          \
