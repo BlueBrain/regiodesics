@@ -197,14 +197,21 @@ private:
 };
 
 Volume<char> segment(Volume<char>& shell, const size_t averageSize,
-                     const std::vector<float>& splitPoints)
+                     const std::vector<float>& splitPoints, const bool bottomUp)
 {
     std::cout << "Computing relative distances" << std::endl;
     auto distances = computeRelativeDistanceField(shell, averageSize);
-    std::cout << "Annotating layers" << std::endl;
-    auto layers = annotateLayers(distances, splitPoints);
-    std::cout << "Saving" << std::endl;
     distances.save("relativeDistances.nrrd");
+
+    std::cout << "Annotating layers" << std::endl;
+    if (bottomUp)
+    {
+        /* We achieve this by modifying the distance field to be 1 - d */
+        shell.apply([](size_t, size_t, size_t, float value){
+                return 1 - value;
+            });
+    }
+    auto layers = annotateLayers(distances, splitPoints);
     layers.save("layers.nrrd");
     return layers;
 }
@@ -244,6 +251,9 @@ int main(int argc, char* argv[])
         ("help,h", "Produce help message")
         ("version,v", "Show program name/version banner and exit")
         ("shell,s", po::value<std::string>(), "Load a saved painted shell")
+        ("flip,f", "Flip 'top' and 'bottom' voxels in the shell dataset")
+        ("bottom-up,b", "Enumerate layers from the bottom to the top, instead"
+         "of top to bottom")
         ("thickness,t", po::value<std::vector<float>>()->multitoken(),
          "Layer thicknesses (absolute or relative). Must contain at least"
          " two values")
@@ -309,6 +319,7 @@ int main(int argc, char* argv[])
                   << std::endl;
         return -1;
     }
+    const bool bottomUp = vm.count("bottom-up");
 
     std::string filename = vm["input"].as<std::string>();
     std::string shellFile;
@@ -338,6 +349,20 @@ int main(int argc, char* argv[])
     Volume<char> shell = shellFile.empty() ? annotateBoundaryVoxels(inVolume)
                                            : Volume<char>(shellFile);
 
+    if (vm.count("flip") && !shellFile.empty())
+    {
+        shell.apply([](size_t, size_t, size_t, char value) {
+            switch (value)
+            {
+            case Top:
+                return Bottom;
+            case Bottom:
+                return Top;
+            }
+            return value;
+        });
+    }
+
     if (filename != ":test:" && inVolume.dimensions() != shell.dimensions())
     {
         std::cerr << "Invalid shell volume" << std::endl;
@@ -352,7 +377,7 @@ int main(int argc, char* argv[])
 
     if (vm.count("segment"))
     {
-        segment(shell, averageSize, splitPoints);
+        segment(shell, averageSize, splitPoints, bottomUp);
         return 0;
     }
 
@@ -375,11 +400,12 @@ int main(int argc, char* argv[])
     osg::ref_ptr<Painter> painter = new Painter(shell, bricks, cameras[0]);
     viewer.addEventHandler(painter);
 
-    painter->done.connect([scene, averageSize, &shell, &colors, splitPoints] {
+    painter->done.connect([scene, averageSize, bottomUp,
+                           &shell, &colors, splitPoints] {
 
         shell.save("shell.nrrd");
 
-        auto layers = segment(shell, averageSize, splitPoints);
+        auto layers = segment(shell, averageSize, splitPoints, bottomUp);
 
         Bricks::ColorMap layerColors;
         layerColors[1] = osg::Vec4(1.0, 0, 0, 1);
