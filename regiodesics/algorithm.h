@@ -6,7 +6,7 @@
 
 #include <boost/geometry/arithmetic/arithmetic.hpp>
 
-Volume<char> annotateBoundaryVoxels(const Volume<unsigned short>& volume);
+Volume<char> annotateBoundaryVoxels(const Volume<unsigned int>& volume);
 
 Segments findNearestVoxels(const Volume<char>& volume, char from, char to);
 

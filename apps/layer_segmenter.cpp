@@ -216,19 +216,19 @@ Volume<char> segment(Volume<char>& shell, const size_t averageSize,
     return layers;
 }
 
-Volume<unsigned short> loadVolume(const std::string& filename)
+Volume<unsigned int> loadVolume(const std::string& filename)
 {
     try
     {
-        return Volume<unsigned short>(filename);
+        return Volume<unsigned int>(filename);
     }
     catch (std::runtime_error&)
     {
-        // Try converting the volume from unsigned char into short
-        Volume<unsigned char> in(filename);
+        // Try converting the volume from unsigned short into int
+        Volume<unsigned short> in(filename);
         size_t width, height, depth;
         std::tie(width, height, depth) = in.dimensions();
-        Volume<unsigned short> out(width, height, depth, in.metadata());
+        Volume<unsigned int> out(width, height, depth, in.metadata());
         for (size_t x = 0; x < width; ++x)
             for (size_t y = 0; y < height; ++y)
                 for (size_t z = 0; z < depth; ++z)
@@ -341,7 +341,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    Volume<unsigned short> inVolume =
+    Volume<unsigned int> inVolume =
         filename == ":test:" ? createVolume(64, 8) : loadVolume(filename);
     std::cout << "Input volume dimensions: " << inVolume.width() << " "
               << inVolume.height() << " " << inVolume.depth() << std::endl;
@@ -368,11 +368,11 @@ int main(int argc, char* argv[])
         std::cerr << "Invalid shell volume" << std::endl;
         return -1;
     }
-    clearOutsideXRange<unsigned short>(inVolume, cropX, 0);
+    clearOutsideXRange<unsigned int>(inVolume, cropX, 0);
     clearOutsideXRange(shell, cropX, '\0');
-    clearOutsideYRange<unsigned short>(inVolume, cropY, 0);
+    clearOutsideYRange<unsigned int>(inVolume, cropY, 0);
     clearOutsideYRange(shell, cropY, '\0');
-    clearOutsideZRange<unsigned short>(inVolume, cropZ, 0);
+    clearOutsideZRange<unsigned int>(inVolume, cropZ, 0);
     clearOutsideZRange(shell, cropZ, '\0');
 
     if (vm.count("segment"))

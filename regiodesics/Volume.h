@@ -307,6 +307,7 @@ private:
 CHECK_NUMERIC_TYPE_METADATA(char)
 CHECK_NUMERIC_TYPE_METADATA(unsigned char)
 CHECK_NUMERIC_TYPE_METADATA(unsigned short)
+CHECK_NUMERIC_TYPE_METADATA(unsigned int)
 CHECK_NUMERIC_TYPE_METADATA(float)
 
 #define CHECK_VECTOR_FIELD_METADATA(T, N)                                \

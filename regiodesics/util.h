@@ -157,14 +157,14 @@ osg::Node* createNearestNeighbourLines(const Volume<char>& volume)
     return geode;
 }
 
-Volume<unsigned short> createVolume(unsigned int side = 128,
+Volume<unsigned int> createVolume(unsigned int side = 128,
                                     unsigned int pad = 8)
 {
     size_t width = side;
     size_t height = side;
     size_t depth = side;
 
-    Volume<unsigned short> volume(width, height, depth);
+    Volume<unsigned int> volume(width, height, depth);
     volume.set(0);
 
     const float amplitude = side / 10;

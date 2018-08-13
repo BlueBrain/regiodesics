@@ -22,7 +22,7 @@ float _relativePositionOnSegment(const Segment& segment, Point3f c)
 }
 }
 
-Volume<char> annotateBoundaryVoxels(const Volume<unsigned short>& volume)
+Volume<char> annotateBoundaryVoxels(const Volume<unsigned int>& volume)
 {
     Volume<char> output(volume.width(), volume.height(), volume.depth(),
                         volume.metadata());
@@ -297,6 +297,7 @@ void clearOutsideRange(Volume<T>& volume,
     CLEAR_OUTSIDE_RANGE_AXIS(T, 1) \
     CLEAR_OUTSIDE_RANGE_AXIS(T, 2)
 
+CLEAR_OUTSIDE_RANGE(unsigned int)
 CLEAR_OUTSIDE_RANGE(unsigned short)
 CLEAR_OUTSIDE_RANGE(char)
 CLEAR_OUTSIDE_RANGE(float)
