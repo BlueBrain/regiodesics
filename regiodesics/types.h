@@ -1,14 +1,15 @@
 #ifndef REGIODESICS_TYPES_H
 #define REGIODESICS_TYPES_H
 
+#include <boost/geometry.hpp>
 #include <boost/geometry/arithmetic/arithmetic.hpp>
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/geometries/point.hpp>
 #include <boost/geometry/geometries/segment.hpp>
 
 #include <iostream>
-#include <vector>
 #include <map>
+#include <vector>
 
 const char Void = 0;
 const char Interior = 1;
