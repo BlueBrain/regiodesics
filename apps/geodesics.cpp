@@ -141,7 +141,7 @@ void saveOrientations(const Volume<Point3f>& orientations,
         }
         return p;
     });
-    output.save("orientations.nrrd");
+    output.save("orientation.nrrd");
 }
 
 void saveDistances(const Volume<float>& heights, const Volume<float>& relatives)
@@ -154,6 +154,6 @@ void saveDistances(const Volume<float>& heights, const Volume<float>& relatives)
                 return NAN;
             return heights(i, j, k) * relatives(i, j, k);
         });
-    heights.save("heights.nrrd");
-    output.save("distances.nrrd");
+    heights.save("height.nrrd");
+    output.save("distance.nrrd");
 }

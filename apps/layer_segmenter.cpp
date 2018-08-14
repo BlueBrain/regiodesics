@@ -201,7 +201,7 @@ Volume<char> segment(Volume<char>& shell, const size_t averageSize,
 {
     std::cout << "Computing relative distances" << std::endl;
     auto distances = computeRelativeDistanceField(shell, averageSize);
-    distances.save("relativeDistances.nrrd");
+    distances.save("relativeDistance.nrrd");
 
     std::cout << "Annotating layers" << std::endl;
     if (bottomUp)
@@ -212,7 +212,7 @@ Volume<char> segment(Volume<char>& shell, const size_t averageSize,
             });
     }
     auto layers = annotateLayers(distances, splitPoints);
-    layers.save("layers.nrrd");
+    layers.save("layer.nrrd");
     return layers;
 }
 
