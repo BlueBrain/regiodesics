@@ -298,7 +298,8 @@ private:
     {                                                                    \
         const auto& type = metadata["type"];                             \
         if (type != #T)                                                  \
-            throw std::runtime_error("Unexpected volume type: " + type); \
+            throw std::runtime_error("Unexpected volume type: " + type + \
+            " was provided whereas " #T " was expected." );              \
         const auto& dims = metadata["dimension"];                        \
         if (std::atoi(dims.c_str()) != 3)                                \
             throw std::runtime_error("Invalid dimensions: " + dims);     \
@@ -332,7 +333,7 @@ CHECK_NUMERIC_TYPE_METADATA(float)
     inline void Volume<PointTN<T, N>>::_fillMetadata()                   \
     {                                                                    \
         _metadata["kinds"] = "vector domain domain domain";              \
-        _metadata["space dimension"] = "4";                              \
+        _metadata["space dimension"] = "3";                              \
     }
 
 CHECK_VECTOR_FIELD_METADATA(char, 4)
