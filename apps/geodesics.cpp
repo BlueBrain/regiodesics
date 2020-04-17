@@ -7,25 +7,39 @@
 
 #include <iostream>
 
-void saveOrientations(const Volume<Point3f>& orientations,
-                      const Volume<char>& shell);
+typedef std::map<std::string, std::string> PathMap;
+
+void saveQuaternions(const Volume<Point3f>& direction_vectors,
+                     const Volume<char>& shell, const std::string& output_path);
+
 void saveDistances(const Volume<float>& heights,
-                   const Volume<float>& relatives);
+                   const Volume<float>& relative_distances,
+                   const PathMap& output_paths);
 
 int main(int argc, char* argv[])
 {
     size_t averageSize = 1000;
-    std::pair<size_t, size_t> cropX{0, std::numeric_limits<size_t>::max()};
 
     namespace po = boost::program_options;
     // clang-format off
     po::options_description options("Options");
     options.add_options()
-        ("help,h", "Produce help message")
-        ("version,v", "Show program name/version banner and exit")
+        ("help,h", "Produce help message.")
+        ("version,v", "Show program name/version banner and exit.")
         ("average-size,a", po::value<size_t>(&averageSize)->value_name("lines"),
          "Size of k-nearest neighbour query of top to bottom lines used to"
-         " approximate orientations");
+         " approximate direction vectors.")
+         ("output-quaternions,q", po::value<std::string>(),
+         "File path of the quaternionic orientation field to save."
+         " If neither output-quaternions nor output-direction-vectors is specified,"
+         " a quaternionic field is saved to \"orientation.nrrd\" in the current directory.")
+         ("output-direction-vectors,u", po::value<std::string>(),
+        "File path of the 3D unit vector field to save.")
+        ("output-distances,d", po::value<std::string>(),
+        "File path of the distance field to save.")
+        ("output-heights", po::value<std::string>(),
+         "File path of the height field to save.");
+
 
     po::options_description hidden;
     hidden.add_options()
@@ -71,42 +85,59 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    Volume<char> shell(vm["shell"].as<std::string>());
-    Volume<float> relatives(vm["distances"].as<std::string>());
+    const Volume<char> shell(vm["shell"].as<std::string>());
+    const Volume<float> relative_distances(vm["distances"].as<std::string>());
 
     const auto index = computeSegmentIndex(shell);
     std::cout << "Computing orientations and absolute distances" << std::endl;
     auto result = computeOrientationsAndHeights(shell, averageSize, &index);
     std::cout << "Saving" << std::endl;
-    auto& orientations = std::get<0>(result);
+    const auto& direction_vectors = std::get<0>(result);
     auto& heights = std::get<1>(result);
-    saveOrientations(orientations, shell);
+
+    if (vm.count("output-quaternions"))
+        saveQuaternions(direction_vectors, shell,
+                        vm["output-quaternions"].as<std::string>());
+    if (vm.count("output-direction-vectors"))
+        direction_vectors.save(
+            vm["output-direction-vectors"].as<std::string>());
+    if (!vm.count("output-quaternions") &&
+        !vm.count("output-direction-vectors"))
+        saveQuaternions(direction_vectors, shell, "orientation.nrrd");
+
     // For correcting the distances from voxel space to volume space we take
     // into account that the volume is isotropic.
-    const auto axis = orientations.volumeAxis(0);
+    const auto axis = direction_vectors.volumeAxis(0);
     const auto correction = std::sqrt(boost::geometry::dot_product(axis, axis));
     heights.apply([correction](size_t, size_t, size_t, const float x) {
         return x * correction;
     });
 
-    saveDistances(heights, relatives);
+    PathMap output_paths{{"output-distances", "distance.nrrd"},
+                         {"output-heights", "height.nrrd"}};
+    if (vm.count("output-distances"))
+        output_paths["output-distances"] =
+            vm["output-distances"].as<std::string>();
+    if (vm.count("output-heights"))
+        output_paths["output-heights"] = vm["output-heights"].as<std::string>();
+    saveDistances(heights, relative_distances, output_paths);
 }
 
-void saveOrientations(const Volume<Point3f>& orientations,
-                      const Volume<char>& shell)
+void saveQuaternions(const Volume<Point3f>& direction_vectors,
+                     const Volume<char>& shell, const std::string& output_path)
 {
     using Point4c = PointTN<char, 4>;
-    Volume<Point4c> output(orientations.width(), orientations.height(),
-                           orientations.depth(), orientations.metadata());
+    Volume<Point4c> output(direction_vectors.width(),
+                           direction_vectors.height(),
+                           direction_vectors.depth(),
+                           direction_vectors.metadata());
     // Overriding the original metadata to provide what the consumer tools
     // expect
     auto& metadata = output.metadata();
     metadata["kinds"] = "quaternion domain domain domain";
-    metadata["space directions"] = "none " + metadata["space directions"];
 
-    output.apply([&orientations, &shell](size_t i, size_t j, size_t k,
-                                         const Point4c&) {
-
+    output.apply([&direction_vectors, &shell](size_t i, size_t j, size_t k,
+                                              const Point4c&) {
         Point4c p;
         if (shell(i, j, k) == 0)
         {
@@ -119,13 +150,12 @@ void saveOrientations(const Volume<Point3f>& orientations,
         {
             // This code ignores the possible mirrorings being applied by
             // by the NRRD space directions
-            auto orientation = orientations(i, j, k);
-            const auto vx = orientations.volumeAxis(0);
-            const auto vy = orientations.volumeAxis(1);
-            const auto vz = orientations.volumeAxis(2);
+            auto orientation = direction_vectors(i, j, k);
+            const auto vx = direction_vectors.volumeAxis(0);
+            const auto vy = direction_vectors.volumeAxis(1);
+            const auto vz = direction_vectors.volumeAxis(2);
             orientation = vx * orientation.get<0>() +
-                          vy * orientation.get<1>() +
-                          vz * orientation.get<2>();
+                          vy * orientation.get<1>() + vz * orientation.get<2>();
             osg::Vec3 v(orientation.get<0>(), orientation.get<1>(),
                         orientation.get<2>());
             v.normalize();
@@ -141,19 +171,21 @@ void saveOrientations(const Volume<Point3f>& orientations,
         }
         return p;
     });
-    output.save("orientation.nrrd");
+    output.save(output_path);
 }
 
-void saveDistances(const Volume<float>& heights, const Volume<float>& relatives)
+void saveDistances(const Volume<float>& heights,
+                   const Volume<float>& relative_distances,
+                   const PathMap& output_paths)
 {
     Volume<float> output(heights.width(), heights.height(), heights.depth(),
                          heights.metadata());
-    output.apply(
-        [&heights, &relatives](size_t i, size_t j, size_t k, const float&) {
-            if (std::isnan(heights(i, j, k)))
-                return NAN;
-            return heights(i, j, k) * relatives(i, j, k);
-        });
-    heights.save("height.nrrd");
-    output.save("distance.nrrd");
+    output.apply([&heights, &relative_distances](size_t i, size_t j, size_t k,
+                                                 const float&) {
+        if (std::isnan(heights(i, j, k)))
+            return NAN;
+        return heights(i, j, k) * relative_distances(i, j, k);
+    });
+    heights.save(output_paths.at("output-heights"));
+    output.save(output_paths.at("output-distances"));
 }

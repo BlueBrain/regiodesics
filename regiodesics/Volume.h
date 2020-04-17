@@ -26,11 +26,11 @@ public:
     Volume(size_t width, size_t height, size_t depth,
            const StringMap& metadata = StringMap())
         // The storage is in colume-major order
-        : _data(new T[width * height * depth]),
-          _width(width),
-          _height(height),
-          _depth(depth),
-          _metadata(metadata)
+        : _data(new T[width * height * depth])
+        , _width(width)
+        , _height(height)
+        , _depth(depth)
+        , _metadata(metadata)
     {
         _parseCoordinateSystem(metadata);
         _fillMetadata();
@@ -234,6 +234,7 @@ public:
     // Write access, use with caution
     std::map<std::string, std::string>& metadata() { return _metadata; }
     const Point3f& volumeAxis(size_t index) const { return _axes[index]; }
+
 private:
     std::unique_ptr<T[]> _data;
     size_t _width;
@@ -299,7 +300,8 @@ private:
         const auto& type = metadata["type"];                             \
         if (type != #T)                                                  \
             throw std::runtime_error("Unexpected volume type: " + type + \
-            " was provided whereas " #T " was expected." );              \
+                                     " was provided whereas " #T         \
+                                     " was expected.");                  \
         const auto& dims = metadata["dimension"];                        \
         if (std::atoi(dims.c_str()) != 3)                                \
             throw std::runtime_error("Invalid dimensions: " + dims);     \

@@ -16,6 +16,8 @@
 #include <boost/progress.hpp>
 #include <boost/signals2/signal.hpp>
 
+#define GL_SILENCE_DEPRECATION
+
 osg::Vec4 TopColor(1, 1, 0, 1);
 osg::Vec4 BottomColor(0, 0.5, 1, 1);
 
@@ -196,23 +198,25 @@ private:
     bool _paint;
 };
 
+typedef std::map<std::string, std::string> PathMap;
 Volume<char> segment(Volume<char>& shell, const size_t averageSize,
-                     const std::vector<float>& splitPoints, const bool bottomUp)
+                     const std::vector<float>& splitPoints, const bool bottomUp,
+                     const PathMap& output_paths)
 {
     std::cout << "Computing relative distances" << std::endl;
     auto distances = computeRelativeDistanceField(shell, averageSize);
-    distances.save("relativeDistance.nrrd");
+    distances.save(output_paths.at("output-relative-distances"));
 
     std::cout << "Annotating layers" << std::endl;
     if (bottomUp)
     {
         /* We achieve this by modifying the distance field to be 1 - d */
-        shell.apply([](size_t, size_t, size_t, float value){
-                return 1 - value;
-            });
+        shell.apply(
+            [](size_t, size_t, size_t, float value) { return 1 - value; });
     }
     auto layers = annotateLayers(distances, splitPoints);
-    layers.save("layer.nrrd");
+    layers.save(output_paths.at("output-layers"));
+
     return layers;
 }
 
@@ -248,18 +252,18 @@ int main(int argc, char* argv[])
     // clang-format off
     po::options_description options("Options");
     options.add_options()
-        ("help,h", "Produce help message")
-        ("version,v", "Show program name/version banner and exit")
-        ("shell,s", po::value<std::string>(), "Load a saved painted shell")
-        ("flip,f", "Flip 'top' and 'bottom' voxels in the shell dataset")
+        ("help,h", "Produce help message.")
+        ("version,v", "Show program name/version banner and exit.")
+        ("shell,s", po::value<std::string>(), "Load a saved painted shell.")
+        ("flip,f", "Flip 'top' and 'bottom' voxels in the shell dataset.")
         ("bottom-up,b", "Enumerate layers from the bottom to the top, instead"
-         "of top to bottom")
+         " of top to bottom.")
         ("thickness,t", po::value<std::vector<float>>()->multitoken(),
          "Layer thicknesses (absolute or relative). Must contain at least"
-         " two values")
+         " two values.")
         ("average-size,a", po::value<size_t>(&averageSize)->value_name("lines"),
          "Size of k-nearest neighbour query of top to bottom lines used to"
-         " approximate relative voxel positions")
+         " approximate relative voxel positions.")
         ("crop-x,x", po::value<std::pair<size_t, size_t>>(&cropX)->
                          value_name("<min>[:<max>]"),
          "Optional crop range for x axis.")
@@ -270,7 +274,13 @@ int main(int argc, char* argv[])
                          value_name("<min>[:<max>]"),
          "Optional crop range for z axis.")
         ("segment",
-         "Proceed directly segmentation, shell volume must be provided.");
+         "Proceed directly segmentation, shell volume must be provided.")
+         ("output-relative-distances,r", po::value<std::string>(),
+            "File path used to save of the relative distances created by segmentation."
+            " Defaults to saving file \"relativeDistances.nrrd\" in the current directory.")
+         ("output-layers,l", po::value<std::string>(),
+            "File path used to save the layers created by segmentation."
+            " Defaults to saving file \"layer.nrrd\" in the current directory.");
 
 
     po::options_description hidden;
@@ -375,9 +385,18 @@ int main(int argc, char* argv[])
     clearOutsideZRange<unsigned int>(inVolume, cropZ, 0);
     clearOutsideZRange(shell, cropZ, '\0');
 
+    PathMap output_paths{{"output-relative-distances", "relativeDistance.nrrd"},
+                         {"output-layers", "layer.nrrd"}};
+    if (vm.count("output-relative-distances"))
+        output_paths["output-relative-distances"] =
+            vm["output-relative-distances"].as<std::string>();
+
+    if (vm.count("output-layers"))
+        output_paths["output-layers"] = vm["output-layers"].as<std::string>();
+
     if (vm.count("segment"))
     {
-        segment(shell, averageSize, splitPoints, bottomUp);
+        segment(shell, averageSize, splitPoints, bottomUp, output_paths);
         return 0;
     }
 
@@ -400,12 +419,12 @@ int main(int argc, char* argv[])
     osg::ref_ptr<Painter> painter = new Painter(shell, bricks, cameras[0]);
     viewer.addEventHandler(painter);
 
-    painter->done.connect([scene, averageSize, bottomUp,
-                           &shell, &colors, splitPoints] {
-
+    painter->done.connect([scene, averageSize, bottomUp, &shell, splitPoints,
+                           &output_paths] {
         shell.save("shell.nrrd");
 
-        auto layers = segment(shell, averageSize, splitPoints, bottomUp);
+        auto layers =
+            segment(shell, averageSize, splitPoints, bottomUp, output_paths);
 
         Bricks::ColorMap layerColors;
         layerColors[1] = osg::Vec4(1.0, 0, 0, 1);

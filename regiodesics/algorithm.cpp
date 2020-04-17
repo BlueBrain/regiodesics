@@ -20,7 +20,7 @@ float _relativePositionOnSegment(const Segment& segment, Point3f c)
     const float t = length(Segmentf(p, q)) / totalLength;
     return std::min(1.f, std::max(0.f, t));
 }
-}
+} // namespace
 
 Volume<char> annotateBoundaryVoxels(const Volume<unsigned int>& volume)
 {
@@ -157,7 +157,10 @@ std::tuple<Volume<Point3f>, Volume<float>> computeOrientationsAndHeights(
     size_t width, height, depth;
     std::tie(width, height, depth) = shell.dimensions();
 
-    Volume<Point3f> orientations(width, height, depth, shell.metadata());
+    auto point3_metadata = shell.metadata();
+    point3_metadata["space directions"] =
+        "none " + point3_metadata["space directions"];
+    Volume<Point3f> orientations(width, height, depth, point3_metadata);
     Volume<float> heights(width, height, depth, shell.metadata());
     boost::progress_display progress(width * height);
 
@@ -186,9 +189,9 @@ std::tuple<Volume<Point3f>, Volume<float>> computeOrientationsAndHeights(
                 for (const auto& segment : neighbours)
                 {
                     Point3f p(segment.first.get<0>(), segment.first.get<1>(),
-                            segment.first.get<2>());
+                              segment.first.get<2>());
                     Point3f q(segment.second.get<0>(), segment.second.get<1>(),
-                            segment.second.get<2>());
+                              segment.second.get<2>());
                     Segmentf s(p, q);
                     subtract_point(q, p);
                     const auto l = length(s);
