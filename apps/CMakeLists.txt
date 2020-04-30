@@ -11,6 +11,10 @@ set(GEODESICS_SOURCES geodesics.cpp)
 set(GEODESICS_LINK_LIBRARIES ${Boost_LIBRARIES} regiodesics)
 common_application(geodesics)
 
+set(DIRECTION_VECTORS_SOURCES direction_vectors.cpp)
+set(DIRECTION_VECTORS_LINK_LIBRARIES ${Boost_LIBRARIES} regiodesics)
+common_application(direction_vectors)
+
 set(DISPLAY_GEODESICS_SOURCES display_geodesics.cpp)
 set(DISPLAY_GEODESICS_LINK_LIBRARIES ${OPENSCENEGRAPH_LIBRARIES} regiodesics
   ${Boost_LIBRARIES})

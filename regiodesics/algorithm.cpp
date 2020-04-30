@@ -2,6 +2,7 @@
 
 #include <boost/geometry/algorithms/distance.hpp>
 #include <boost/progress.hpp>
+#include <stdexcept>
 
 namespace
 {
@@ -49,6 +50,13 @@ Segments findNearestVoxels(const Volume<char>& volume, char from, char to)
 {
     Segments segments;
     auto index = volume.createIndex(to);
+    if (index.size() == 0)
+    {
+        std::string missing = (to == Bottom) ? "bottom" : "top";
+        missing = "The required " + missing +
+                  " shell is missing. Computations failed.";
+        throw(std::invalid_argument(missing));
+    }
     volume.visit(
         [index, from, &segments](size_t x, size_t y, size_t z, const char& v) {
             if (v != from)
