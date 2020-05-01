@@ -7,14 +7,13 @@
 
 #include <iostream>
 
-typedef std::map<std::string, std::string> PathMap;
-
 void saveQuaternions(const Volume<Point3f>& direction_vectors,
                      const Volume<char>& shell, const std::string& output_path);
 
 void saveDistances(const Volume<float>& heights,
                    const Volume<float>& relative_distances,
-                   const PathMap& output_paths);
+                   const std::string& heights_path,
+                   const std::string& distances_path);
 
 int main(int argc, char* argv[])
 {
@@ -35,9 +34,9 @@ int main(int argc, char* argv[])
          " a quaternionic field is saved to \"orientation.nrrd\" in the current directory.")
          ("output-direction-vectors,u", po::value<std::string>(),
         "File path of the 3D unit vector field to save.")
-        ("output-distances,d", po::value<std::string>(),
+        ("output-distances,d", po::value<std::string>()->default_value("distance.nrrd"),
         "File path of the distance field to save.")
-        ("output-heights", po::value<std::string>(),
+        ("output-heights", po::value<std::string>()->default_value("height.nrrd"),
          "File path of the height field to save.");
 
 
@@ -113,14 +112,9 @@ int main(int argc, char* argv[])
         return x * correction;
     });
 
-    PathMap output_paths{{"output-distances", "distance.nrrd"},
-                         {"output-heights", "height.nrrd"}};
-    if (vm.count("output-distances"))
-        output_paths["output-distances"] =
-            vm["output-distances"].as<std::string>();
-    if (vm.count("output-heights"))
-        output_paths["output-heights"] = vm["output-heights"].as<std::string>();
-    saveDistances(heights, relative_distances, output_paths);
+    saveDistances(heights, relative_distances,
+                  vm["output-distances"].as<std::string>(),
+                  vm["output-heights"].as<std::string>());
 }
 
 void saveQuaternions(const Volume<Point3f>& direction_vectors,
@@ -176,7 +170,8 @@ void saveQuaternions(const Volume<Point3f>& direction_vectors,
 
 void saveDistances(const Volume<float>& heights,
                    const Volume<float>& relative_distances,
-                   const PathMap& output_paths)
+                   const std::string& heights_path,
+                   const std::string& distances_path)
 {
     Volume<float> output(heights.width(), heights.height(), heights.depth(),
                          heights.metadata());
@@ -186,6 +181,6 @@ void saveDistances(const Volume<float>& heights,
             return NAN;
         return heights(i, j, k) * relative_distances(i, j, k);
     });
-    heights.save(output_paths.at("output-heights"));
-    output.save(output_paths.at("output-distances"));
+    heights.save(heights_path);
+    output.save(distances_path);
 }
