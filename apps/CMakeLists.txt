@@ -1,23 +1,20 @@
-include_directories(${PROJECT_SOURCE_DIR}/nrrd ${Boost_INCLUDE_DIRS})
+add_executable(layer_segmenter layer_segmenter.cpp)
+target_link_libraries(layer_segmenter PRIVATE regiodesics)
 
-set(LAYER_SEGMENTER_SOURCES layer_segmenter.cpp)
-set(LAYER_SEGMENTER_LINK_LIBRARIES ${OPENSCENEGRAPH_LIBRARIES}
-  ${Boost_LIBRARIES} regiodesics)
-common_application(layer_segmenter)
-target_include_directories(layer_segmenter
-  PRIVATE ${OPENSCENEGRAPH_INCLUDE_DIRS})
+add_executable(geodesics geodesics.cpp)
+target_link_libraries(geodesics PRIVATE regiodesics)
 
-set(GEODESICS_SOURCES geodesics.cpp)
-set(GEODESICS_LINK_LIBRARIES ${Boost_LIBRARIES} regiodesics)
-common_application(geodesics)
+add_executable(direction_vectors direction_vectors.cpp)
+target_link_libraries(direction_vectors PRIVATE regiodesics)
 
-set(DIRECTION_VECTORS_SOURCES direction_vectors.cpp)
-set(DIRECTION_VECTORS_LINK_LIBRARIES ${Boost_LIBRARIES} regiodesics)
-common_application(direction_vectors)
+add_executable(display_geodesics display_geodesics.cpp)
+target_link_libraries(display_geodesics PRIVATE regiodesics)
 
-set(DISPLAY_GEODESICS_SOURCES display_geodesics.cpp)
-set(DISPLAY_GEODESICS_LINK_LIBRARIES ${OPENSCENEGRAPH_LIBRARIES} regiodesics
-  ${Boost_LIBRARIES})
-common_application(display_geodesics)
-target_include_directories(display_geodesics
-  PRIVATE ${OPENSCENEGRAPH_INCLUDE_DIRS})
+install(
+    TARGETS
+        layer_segmenter
+        geodesics
+        direction_vectors
+        display_geodesics
+    RUNTIME DESTINATION
+        bin)

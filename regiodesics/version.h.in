@@ -1,0 +1,24 @@
+#ifndef REGIODESICS_VERSION_H
+#define REGIODESICS_VERSION_H
+
+#include <string>
+
+namespace regiodesics
+{
+#define REGIODESICS_VERSION_MAJOR ${REGIODESICS_VERSION_MAJOR}
+#define REGIODESICS_VERSION_MINOR ${REGIODESICS_VERSION_MINOR}
+#define REGIODESICS_VERSION_PATCH ${REGIODESICS_VERSION_PATCH}
+#define REGIODESICS_VERSION_STRING "${REGIODESICS_VERSION_STRING}"
+
+class Version
+{
+public:
+    static int getMajor();
+    static int getMinor();
+    static int getPatch();
+    static std::string getString();
+};
+
+}
+
+#endif

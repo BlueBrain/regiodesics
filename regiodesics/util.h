@@ -8,8 +8,6 @@
 #include <osg/Geometry>
 #include <osg/Node>
 
-#include <boost/progress.hpp>
-
 #include <iostream>
 
 namespace std

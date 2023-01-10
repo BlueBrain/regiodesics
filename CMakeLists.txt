@@ -1,24 +1,19 @@
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
-project(Regiodesics VERSION 0.1.2)
+project(Regiodesics VERSION 0.1.3)
 set(Regiodesics_VERSION_ABI 1)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/CMake/common)
-if(NOT EXISTS ${CMAKE_SOURCE_DIR}/CMake/common/Common.cmake)
-  message(FATAL_ERROR "CMake/common missing, run: git submodule update --init")
-endif()
+set(REGIODESICS_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(REGIODESICS_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(REGIODESICS_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(REGIODESICS_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
-set(REGIODESICS_DESCRIPTION "A tool for segment")
-set(REGIODESICS_MAINTAINER "Blue Brain Project <bbp-open-source@googlegroups.com>")
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(COMMON_PROJECT_DOMAIN ch.epfl.bluebrain)
-include(Common)
-common_find_package(OpenSceneGraph SYSTEM REQUIRED COMPONENTS
-  osg osgViewer osgGA osgUtil osgManipulator)
-common_find_package(Boost SYSTEM REQUIRED COMPONENTS filesystem system
-                                                     program_options)
-common_find_package(OpenGL REQUIRED)
-common_find_package(OpenMP)
-common_find_package_post()
+find_package(OpenSceneGraph REQUIRED COMPONENTS osg osgViewer osgGA osgUtil osgManipulator)
+find_package(Boost REQUIRED COMPONENTS filesystem system program_options)
+find_package(OpenGL REQUIRED)
+find_package(OpenMP)
 
 add_subdirectory(regiodesics)
 add_subdirectory(apps)
