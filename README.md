@@ -13,10 +13,11 @@ assigned to the top or bottom shells by "painting" them using the mouse controls
 + `Shift + Left-Click` to paint a cube of the top shell (value 4)
 + `Ctrl + Shift + Left-Click` to remove the color of a painted cube
 + `s` to save the result to `shell.nrrd`
-+ `Esc` to quit
++ `+` to increase the brush size
++ `-` to decrease the brush size
++ `Esc` to quit (without saving)
 
-In addition to the top/bottom shells, the output file has values: 0 for background voxels, 1 for interior voxels
-and 2 for non-painted boundary voxels (sides).
+In addition to the top/bottom shells, the output file has values: `0` for background voxels, `1` for interior voxels and `2` for non-painted boundary voxels (sides).
 
 This application can also be used to compute relative distances (to the top shell) and perform layer segmentation
 based on user-defined layer thicknesses.
@@ -103,6 +104,21 @@ A `docker` file is included that can be used to build the software:
     $ ninja
 
     # applications can be found in /opt/regiodesics/build/apps
+
+Alternatively, the software can be built locally by installing the following dependencies (listed here for Debian-based distros, equivalent ones for other distros):
+
+    build-essential (C++ compiler and runtime)
+    ninja-build (Ninja build system)
+    cmake (CMake build system)
+    libboost-filesystem-dev (Boost.Filesystem library)
+    libboost-program-options-dev (Boost.Program_options library)
+    libopenscenegraph-dev (OpenSceneGraph library)
+
+and running (from the source code root):
+
+    $ mkdir build
+    $ cd build
+    $ cmake .. -GNinja
 
 ## Acknowledgements
 
