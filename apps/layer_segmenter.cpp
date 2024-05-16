@@ -55,10 +55,10 @@ public:
             glReadBuffer(GL_COLOR_ATTACHMENT1);
 
             auto viewport = camera->getViewport();
-            const int posx = std::max(0, _painter->_x - 20);
-            const int posy = std::max(0, _painter->_y - 20);
-            const int width = std::min(40, int(viewport->width()) - posx);
-            const int height = std::min(40, int(viewport->height()) - posy);
+            const int posx = std::max(0, _painter->_x - _painter->_size);
+            const int posy = std::max(0, _painter->_y - _painter->_size);
+            const int width = std::min(2 * _painter->_size, int(viewport->width()) - posx);
+            const int height = std::min(2 * _painter->_size, int(viewport->height()) - posy);
 
             _image->readPixels(posx, posy, width, height, GL_RGB, GL_FLOAT);
 
@@ -110,6 +110,7 @@ public:
         , _bricks(bricks)
         , _state(State::off)
         , _paint(false)
+        , _size(20)
     {
         camera->setPostDrawCallback(new PostDrawCallback(this));
     }
@@ -166,6 +167,20 @@ public:
                 _volume.save("shell.nrrd");
                 return true;
             }
+            else if (ea.getKey() == '+')
+            {
+                if (_size + 5 <= 100)
+                    _size += 5;
+                std::cout << "Brush size: " << _size << std::endl;
+                return true;
+            }
+            else if (ea.getKey() == '-')
+            {
+                if (_size - 5 >= 5)
+                    _size -= 5;
+                std::cout << "Brush size: " << _size << std::endl;
+                return true;
+            }
             break;
         default:;
         }
@@ -196,6 +211,7 @@ private:
     int _x;
     int _y;
     bool _paint;
+    int _size;
 };
 
 typedef std::map<std::string, std::string> PathMap;
