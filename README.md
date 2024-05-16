@@ -17,7 +17,7 @@ assigned to the top or bottom shells by "painting" them using the mouse controls
 + `-` to decrease the brush size
 + `Esc` to quit (without saving)
 
-In addition to the top/bottom shells, the output file has values: `0` for background voxels, `1` for interior voxels and `2` for non-painted boundary voxels (sides).
+In addition to the top/bottom shells, the output file has values: 0 for background voxels, 1 for interior voxels and 2 for non-painted boundary voxels (sides).
 
 This application can also be used to compute relative distances (to the top shell) and perform layer segmentation
 based on user-defined layer thicknesses.
@@ -107,12 +107,12 @@ A `docker` file is included that can be used to build the software:
 
 Alternatively, the software can be built locally by installing the following dependencies (listed here for Debian-based distros, equivalent ones for other distros):
 
-    build-essential (C++ compiler and runtime)
-    ninja-build (Ninja build system)
-    cmake (CMake build system)
-    libboost-filesystem-dev (Boost.Filesystem library)
-    libboost-program-options-dev (Boost.Program_options library)
-    libopenscenegraph-dev (OpenSceneGraph library)
+    build-essential              : C++ compiler and runtime
+    ninja-build                  : Ninja build system
+    cmake                        : CMake build system
+    libboost-filesystem-dev      : Boost.Filesystem library
+    libboost-program-options-dev : Boost.Program_options library
+    libopenscenegraph-dev        : OpenSceneGraph library
 
 and running (from the source code root):
 
