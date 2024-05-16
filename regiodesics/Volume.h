@@ -289,7 +289,10 @@ private:
 
     void _checkMetadata(std::map<std::string, std::string>& metadata);
 
-    void _fillMetadata() { _metadata["kinds"] = "domain domain domain"; }
+    void _fillMetadata() {
+        _metadata["space dimension"] = "3";
+        _metadata["kinds"] = "domain domain domain";
+    }
     StringMap _metadata;
 };
 
