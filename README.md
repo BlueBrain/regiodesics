@@ -1,10 +1,14 @@
 # Regiodesics
 
-# Tools
+Tools to generate relative distance and orientation fields in 3D voxel atlases.
+
+# Apps
 
 ## layer\_segmenter
 
-Multi-purpose application that can be used to generate top and bottom shells of a brain region.
+![Screenshot of layer_segmenter application.](https://github.com/seirios/regiodesics/assets/7497849/c60e2adb-0e7b-4664-85bb-70d0978cc99d)
+
+Multi-purpose interactive application that can be used to generate top and bottom shells of a brain region.
 To produce shells, we provide an input NRRD file (uint16, RAW encoding) containing the brain region of interest.
 On launch, a GL viewer appears showing border voxels of the brain region rendered as cubes. These cubes can be
 assigned to the top or bottom shells by "painting" them using the mouse controls:
