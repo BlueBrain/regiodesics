@@ -1,6 +1,6 @@
 # Regiodesics
 
-Tools to generate relative distance and orientation fields in 3D voxel atlases.
+Tools to generate relative distance and orientation fields in 3D brain atlases.
 
 # Apps
 
