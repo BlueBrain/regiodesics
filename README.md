@@ -13,8 +13,8 @@ To produce shells, we provide an input NRRD file (uint16, RAW encoding) containi
 On launch, a GL viewer appears showing border voxels of the brain region rendered as cubes. These cubes can be
 assigned to the top or bottom shells by "painting" them using the mouse controls:
 
-+ `Ctrl + Left-Click` to paint a cube of the bottom shell (value 3)
-+ `Shift + Left-Click` to paint a cube of the top shell (value 4)
++ `Ctrl + Left-Click` to paint a cube of the bottom shell (yellow, value 3)
++ `Shift + Left-Click` to paint a cube of the top shell (blue, value 4)
 + `Ctrl + Shift + Left-Click` to remove the color of a painted cube
 + `s` to save the result to `shell.nrrd`
 + `+` to increase the brush size
