@@ -126,6 +126,7 @@ and running (from the source code root):
     $ mkdir build
     $ cd build
     $ cmake .. -GNinja
+    $ ninja
 
 ## Acknowledgements
 
