@@ -1,22 +1,30 @@
 # Regiodesics
 
-# Tools
+Tools to generate relative distance and orientation fields in 3D brain atlases.
+
+# Apps
 
 ## layer\_segmenter
 
-Multi-purpose application that can be used to generate top and bottom shells of a brain region.
+![Screenshot of layer_segmenter application.](img/layer_segmenter.png)
+
+Multi-purpose interactive application that can be used to generate top and bottom shells of a brain region.
 To produce shells, we provide an input NRRD file (uint16, RAW encoding) containing the brain region of interest.
 On launch, a GL viewer appears showing border voxels of the brain region rendered as cubes. These cubes can be
 assigned to the top or bottom shells by "painting" them using the mouse controls:
 
-+ `Ctrl + Left-Click` to paint a cube of the bottom shell (value 3)
-+ `Shift + Left-Click` to paint a cube of the top shell (value 4)
-+ `Ctrl + Shift + Left-Click` to remove the color of a painted cube
-+ `s` to save the result to `shell.nrrd`
-+ `Esc` to quit
++ `Left-Click + drag` to rotate camera
++ `Middle-Click + drag` to displace camera
++ `Right-Click + drag` or `Mouse-Wheel` to zoom camera
++ `Ctrl + Left-Click` to paint cubes with bottom label (yellow, value 3)
++ `Shift + Left-Click` to paint cubes with top label (blue, value 4)
++ `Ctrl + Shift + Left-Click` to remove label from painted cubes
++ `s` to save result as `shell.nrrd`
++ `+` to increase brush size
++ `-` to decrease brush size
++ `Esc` to quit (without saving)
 
-In addition to the top/bottom shells, the output file has values: 0 for background voxels, 1 for interior voxels
-and 2 for non-painted boundary voxels (sides).
+In addition to the top/bottom shells, the output file has values: 0 for background voxels, 1 for interior voxels and 2 for non-painted boundary voxels (sides).
 
 This application can also be used to compute relative distances (to the top shell) and perform layer segmentation
 based on user-defined layer thicknesses.
@@ -103,6 +111,22 @@ A `docker` file is included that can be used to build the software:
     $ ninja
 
     # applications can be found in /opt/regiodesics/build/apps
+
+Alternatively, the software can be built locally by installing the following dependencies (listed here for Debian-based distros, equivalent ones for other distros):
+
+    build-essential              : C++ compiler and runtime
+    ninja-build                  : Ninja build system
+    cmake                        : CMake build system
+    libboost-filesystem-dev      : Boost.Filesystem library
+    libboost-program-options-dev : Boost.Program_options library
+    libopenscenegraph-dev        : OpenSceneGraph library
+
+and running (from the source code root):
+
+    $ mkdir build
+    $ cd build
+    $ cmake .. -GNinja
+    $ ninja
 
 ## Acknowledgements
 
